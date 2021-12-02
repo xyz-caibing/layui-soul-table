@@ -1,12 +1,12 @@
 /**
  *
- * @name:  表格增强插件-独立版本
- * @author: yelog
- * @link: https://github.com/yelog/layui-soul-table
+ * @name:  表格增强插件-独立版本分支
+ * @author: caibing
+ * @link: https://github.com/xyz-caibing/layui-soul-table.git
  * @license: MIT
- * @version: v1.6.2
+ * @version: v1.6.2.1
  */
-layui.define(['table'], function (exports) {
+ layui.define(['table'], function (exports) {
 
     var $ = layui.$,
       table = layui.table,
@@ -14,14 +14,15 @@ layui.define(['table'], function (exports) {
       tables = {},
       originCols = {},
       defaultConfig = { // 默认配置开关
-          fixTotal: false, // 修复合计行固定列问题
-          drag: true, // 列拖动
+          operandFlexBar: false,  //默认关闭操作收缩栏 ，开启配置 {status: 'show'}  查询收缩栏 ，开启配置 {minHeight: 'full-160', maxHeight: 'full-190'}
+          fixTotal: true, // 修复合计行固定列问题
+          drag: false, // 列拖动
           rowDrag: false, // 行拖动
-          autoColumnWidth: true, // 自动列宽
+          autoColumnWidth: false, // 自动列宽
           contextmenu: false, // 右键菜单
-          fixResize: true, // 修改有固定列的拖动列宽的位置为左边线
+          fixResize: false, // 修改有固定列的拖动列宽的位置为左边线
           overflow: false, // 自定义内容超出样式
-          fixFixedScroll: true, // 固定列支持鼠标滚轮滚动
+          fixFixedScroll: false, // 固定列支持鼠标滚轮滚动
           filter: false  // 筛选及记忆相关
       },
       _BODY = $('body'),
@@ -84,6 +85,15 @@ layui.define(['table'], function (exports) {
             if (curConfig.fixFixedScroll) {
                 this.fixFixedScroll(myTable);
             }
+
+            if (curConfig.operandFlexBar) {
+                this.operandFlexBar(myTable, curConfig.operandFlexBar);
+            }
+
+            if (curConfig.totalRow) {
+                this.totalRow(myTable);
+            }
+            
         }
         , config: function (configObj) {
             if (typeof configObj === 'object') {
@@ -1340,6 +1350,7 @@ layui.define(['table'], function (exports) {
             }
         },
         fixFixedScroll: function (myTable) {
+            console.log('fixFixedScroll');
             var $table = $(myTable.elem),
               layFixed = $table.next().children('.layui-table-box').children('.layui-table-fixed'),
               layMain = $table.next().children('.layui-table-box').children('.layui-table-main');
@@ -1499,6 +1510,202 @@ layui.define(['table'], function (exports) {
          */
         suspend: function (tableId, type, value) {
             this.suspendConfig[tableId][type] = value
+        },
+        operandFlexBar: function (myTable, operandFlexBarConfig) {
+            var _this = this;
+            let CacheObj = {
+                key: 'OperandFlexBar',
+                setCache: function(myTable, data) {
+                    let storeKey = 'origin_' + CacheObj.key + myTable.id;  //TODO table id 不唯一bug
+                    if (!operandFlexBarConfig.cache) {
+                        localStorage.removeItem(storeKey);
+                        return false;
+                    }
+                    localStorage.setItem(storeKey, _this.deepStringify(data));
+                },
+                getCache:function (myTable) {
+                    let storeKey = 'origin_' + CacheObj.key + myTable.id;
+                    if (!operandFlexBarConfig.cache) {
+                        localStorage.removeItem(storeKey);
+                        return false;
+                    }
+                    if(localStorage.getItem(storeKey)==null) {
+                        return false;
+                    }
+                    return _this.deepParse(localStorage.getItem(storeKey));
+                }
+            }
+            //默认开启缓存
+            if(operandFlexBarConfig.cache == undefined) {
+                operandFlexBarConfig.cache = true;
+            }
+
+            if (typeof myTable === 'object') {
+                innerFlexBar(_this, myTable)
+            } else if (typeof myTable === 'string') {
+                innerFlexBar(_this, tables[myTable])
+            } else if (typeof myTable === 'undefined') {
+                layui.each(tables, function () {
+                    innerFlexBar(_this, this)
+                });
+            }
+
+            function innerFlexBar(_this, myTable) {
+                if(operandFlexBarConfig.unfoldMoreSerach) {
+                    innerUnfoldMoreSerach(myTable, operandFlexBarConfig.unfoldMoreSerach);
+                }
+
+                let tableBox = $(myTable.elem).next().children('.layui-table-box');
+                //判断是否存在操作列
+                if(!tableBox.children('.layui-table-fixed-r').hasClass('layui-table-fixed-r')) {
+                    console.log('不存在操作列');
+                    return false;
+                }
+                let element = $([
+                    '<div class="layui-table-operand" status="" title="收缩栏" lay-event="LAYTABLE_OPERAND_TOOL">',
+                        '<div class="layui-table-operand-panel">',
+                            '<div class="layui-table-operand-btn-next">',
+                            '<i class="layui-icon layui-icon-next"></i>',
+                            '</div>',
+                            '<div class="layui-table-operand-btn-prev" style="display: none;">',
+                            '<i class="layui-icon layui-icon-prev"></i>',
+                            '</div>',
+                        '</div>',
+                    '</div>'
+                ].join(''));
+                element.attr('status', operandFlexBarConfig.status);
+                element.find('.layui-table-operand-btn-next').click(function(){
+                    tableBox.children('.layui-table-fixed-r').hide();
+                    element.attr('status', 'hide');
+                    element.find('.layui-table-operand-btn-prev').show();
+                    $(this).hide();
+                    
+                    CacheObj.setCache(myTable, {status: 'hide'});
+                });
+                element.find('.layui-table-operand-btn-prev').click(function(){
+                    tableBox.children('.layui-table-fixed-r').show();
+                    element.attr('status', 'show');
+                    element.find('.layui-table-operand-btn-next').show();
+                    $(this).hide();
+
+                    CacheObj.setCache(myTable, {status: 'show'});
+                });
+                tableBox.append(element);
+
+                let cache = CacheObj.getCache(myTable);
+                if(cache) {
+                    operandFlexBarConfig.status = cache.status;
+                }
+                if(operandFlexBarConfig.status == 'hide') {
+                    element.find('.layui-table-operand-btn-next').click();
+                } else if(operandFlexBarConfig.status == 'show') {
+                    element.find('.layui-table-operand-btn-prev').click();
+                }
+            }
+            
+            function innerUnfoldMoreSerach(myTable, unfoldMoreSerachConfig) {
+                //判断highSearch 是否存在
+                if(!_BODY.find('form:first').children('.highSearch').hasClass('highSearch')) {
+                    console.log('不存在高级查询');
+                    return false;
+                }
+                let tableOperandElem = $(myTable.elem).next().children('.layui-table-box').children('.layui-table-operand');
+                    
+                _BODY.find('.cutMore, .seeMore').unbind("click");
+                _BODY.find('.cutMore, .seeMore').bind('click', function(){
+                    let str = $(this).attr('class');
+                    if (str.indexOf('cutMore') != -1) {
+                        table.reload(myTable.id, {
+                            height: unfoldMoreSerachConfig.minHeight,
+                            operandFlexBar: {
+                                status: tableOperandElem.attr('status'), 
+                                unfoldMoreSerach: false
+                            }
+                        }, false);
+                        $(this).attr('tableheight', unfoldMoreSerachConfig.minHeight);
+                    }else {//展开
+                        table.reload(myTable.id, {
+                            height: unfoldMoreSerachConfig.maxHeight,
+                            operandFlexBar: {
+                                status: tableOperandElem.attr('status'), 
+                                unfoldMoreSerach: false
+                            }
+                        }, false);
+                        $(this).attr('tableheight', unfoldMoreSerachConfig.maxHeight);
+                    }
+                });
+            }
+        },
+        totalRow: function (myTable) {
+            var _this = this;
+            if (typeof myTable === 'object') {
+                innerFieldTotal(_this, myTable)
+            } else if (typeof myTable === 'string') {
+                innerFieldTotal(_this, tables[myTable])
+            } else if (typeof myTable === 'undefined') {
+                layui.each(tables, function () {
+                    innerFieldTotal(_this, this)
+                });
+            }
+
+            function innerFieldTotal(_this, myTable) {
+                var $table = $(myTable.elem),
+                    divCell = $table.next().children('.layui-table-total').find('div.layui-table-cell'),
+                    totalNums = {}, totalCols = {}, totalNumsDecimals = {};
+
+                if (myTable.data && myTable.data.length <= 0) {
+                    $table.siblings('#paging').hide();
+                    // $table.parent().find('.layui-laypage').hide();
+                    divCell.attr('style', 'visibility: ;').html('合计');
+                    return;
+                }
+                $table.siblings('#paging').show();
+                
+                //遍历表头列
+                layui.each(myTable.cols, function(i1, item1){
+                    layui.each(item1, function(i2, item2){
+                        //如果是合计列，则计算合计数
+                        var field = item2.field || i2;
+                        if(item2.totalCol){
+                            totalCols[field] = field;
+                            totalNums[field] = 0;
+                            totalNumsDecimals[field] = false;
+                        }
+                    });
+                });
+
+                layui.each(myTable.data, function(i1, item1){
+                    layui.each(item1, function(i2, item2){
+                        if(totalCols[i2] && item2 != null) {
+                            if(totalNumsDecimals[i2] === false) {
+                                let decimalPart = String(item2).split('.')[1];
+                                totalNumsDecimals[i2] = decimalPart?decimalPart.length:false;
+                            }
+                            totalNums[i2] = (new BigNumber(item2)).plus(totalNums[i2]);
+                        }
+                    });
+                });
+                $.each(divCell, function (index, item) {
+                    let fieldName = $(item).parent().attr('data-field');
+                    if(totalNums[fieldName]) {
+                        $(item).html( _this.formatMoney(totalNums[fieldName], totalNumsDecimals[fieldName]) );
+                    }
+                });
+            }
+        },
+        formatMoney: function (money, decimals = false) {
+            if (money != undefined && money != null) {
+                if(decimals === false) {
+                    let decimalPart = String(money).split('.')[1];
+                    decimals = decimalPart?decimalPart.length:0;
+                }
+                if(BigNumber.isBigNumber(money)) {
+                    return money.toFormat(decimals);
+                }
+                return (new BigNumber(money)).toFormat(decimals);
+            } else {
+                return '';
+            }
         }
     }
 

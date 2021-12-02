@@ -786,3 +786,39 @@
     -ms-overflow-style:none;
     overflow:-moz-scrollbars-none;
 }
+
+/* 操作列收缩 */ 
+.layui-table-box .layui-table-operand {
+	position: absolute;
+    left: auto;
+    /* top: 50%; */
+    z-index: 102;
+    right: 16px;
+	/* border: 1px solid red; */
+	top: 33px;
+    bottom: 16px;
+    width: 18PX;
+}
+.layui-table-box .layui-table-operand .layui-table-operand-btn-next:hover {
+    color: #000;
+}
+.layui-table-box .layui-table-operand .layui-table-operand-btn-prev:hover {
+    color: #000;
+}
+.layui-table-box .layui-table-operand .layui-table-operand-btn-next {
+	position: absolute;
+    top: 50%;
+	cursor: pointer;
+	color: #999;
+    transition: all .3s;
+    -webkit-transition: all .3s;
+}
+
+.layui-table-box .layui-table-operand .layui-table-operand-btn-prev {
+	position: absolute;
+    top: 50%;
+	cursor: pointer;
+	color: #999;
+    transition: all .3s;
+    -webkit-transition: all .3s;
+}
