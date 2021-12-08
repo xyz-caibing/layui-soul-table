@@ -14,6 +14,7 @@
       tables = {},
       originCols = {},
       defaultConfig = { // 默认配置开关
+          lineColor: true,
           operandFlexBar: false,  //默认关闭操作收缩栏 ，开启配置 {status: 'show'}  查询收缩栏 ，开启配置 {minHeight: 'full-160', maxHeight: 'full-190'}
           fixTotal: true, // 修复合计行固定列问题
           drag: false, // 列拖动
@@ -94,6 +95,9 @@
                 this.totalRow(myTable);
             }
             
+            if (curConfig.lineColor) {
+                this.lineColor(myTable, curConfig.lineColor);
+            }
         }
         , config: function (configObj) {
             if (typeof configObj === 'object') {
@@ -239,16 +243,22 @@
                 function handleColumnWidth(myTable, othis, isHandle) {
                     var key = othis.data('key')
                       , keyArray = key.split('-')
-                      , curKey = keyArray.length === 3 ? keyArray[1] + '-' + keyArray[2] : ''
+                      , curKey = keyArray.length === 3 ? keyArray[1] + '-' + keyArray[2] : '';
+                    
                     if (othis.attr('colspan') > 1 || othis.data('unresize')) {
                         return;
                     }
                     if (isHandle) {
                         var maxWidth = othis.text().width(othis.css('font')) + 21, font = othis.css('font');
+                        
                         $tableBodytr.children('td[data-key="' + key + '"]').each(function (index, elem) {
+                            if(maxWidth >= 300) {
+                                maxWidth = 300;
+                                return false;
+                            }
                             var curWidth = 0
                             if ($(this).children().children() && $(this).children().children().length > 0) {
-                                curWidth += $(this).children().html().width(font)
+                                curWidth += $(this).children().html().width(font);
                             } else {
                                 curWidth = $(this).text().width(font);
                             }
@@ -257,7 +267,7 @@
                             if (maxWidth < curWidth) {
                                 maxWidth = curWidth
                             }
-                        })
+                        });
                         if ($totalTr.length > 0) {
                             var curWidth = $totalTr.children('td[data-key="' + key + '"]').text().width(font)
                             if (maxWidth < curWidth) {
@@ -265,6 +275,7 @@
                             }
 
                         }
+                        
 
                         maxWidth += 32;
 
@@ -1350,7 +1361,6 @@
             }
         },
         fixFixedScroll: function (myTable) {
-            console.log('fixFixedScroll');
             var $table = $(myTable.elem),
               layFixed = $table.next().children('.layui-table-box').children('.layui-table-fixed'),
               layMain = $table.next().children('.layui-table-box').children('.layui-table-main');
@@ -1372,6 +1382,7 @@
               layMain = $table.next().children('.layui-table-box').children('.layui-table-main'),
               layFixed = $table.next().children('.layui-table-box').children('.layui-table-fixed'),
               layFixRight = $table.next().children('.layui-table-box').children('.layui-table-fixed-r'),
+              layOperandRight = $table.next().children('.layui-table-box').children('.layui-table-operand');
               layMainTable = layMain.children('table'),
               scollWidth = layMain.width() - layMain.prop('clientWidth'),
               scollHeight = layMain.height() - layMain.prop('clientHeight'),
@@ -1555,12 +1566,14 @@
                     innerUnfoldMoreSerach(myTable, operandFlexBarConfig.unfoldMoreSerach);
                 }
 
-                let tableBox = $(myTable.elem).next().children('.layui-table-box');
+                let tableBox = $(myTable.elem).next().children('.layui-table-box'),
+                    tableTotal = $(myTable.elem).next().children('.layui-table-total');
                 //判断是否存在操作列
                 if(!tableBox.children('.layui-table-fixed-r').hasClass('layui-table-fixed-r')) {
                     console.log('不存在操作列');
                     return false;
                 }
+
                 let element = $([
                     '<div class="layui-table-operand" status="" title="收缩栏" lay-event="LAYTABLE_OPERAND_TOOL">',
                         '<div class="layui-table-operand-panel">',
@@ -1573,9 +1586,11 @@
                         '</div>',
                     '</div>'
                 ].join(''));
+
                 element.attr('status', operandFlexBarConfig.status);
                 element.find('.layui-table-operand-btn-next').click(function(){
                     tableBox.children('.layui-table-fixed-r').hide();
+                    tableTotal.children('.layui-table-total-fixed-r').hide();
                     element.attr('status', 'hide');
                     element.find('.layui-table-operand-btn-prev').show();
                     $(this).hide();
@@ -1584,12 +1599,14 @@
                 });
                 element.find('.layui-table-operand-btn-prev').click(function(){
                     tableBox.children('.layui-table-fixed-r').show();
+                    tableTotal.children('.layui-table-total-fixed-r').show();
                     element.attr('status', 'show');
                     element.find('.layui-table-operand-btn-next').show();
                     $(this).hide();
 
                     CacheObj.setCache(myTable, {status: 'show'});
                 });
+                tableBox.find('.layui-table-operand').remove();
                 tableBox.append(element);
 
                 let cache = CacheObj.getCache(myTable);
@@ -1657,7 +1674,7 @@
                     $table.siblings('#paging').hide();
                     // $table.parent().find('.layui-laypage').hide();
                     divCell.attr('style', 'visibility: ;').html('合计');
-                    return;
+                    return false;
                 }
                 $table.siblings('#paging').show();
                 
@@ -1681,7 +1698,7 @@
                                 let decimalPart = String(item2).split('.')[1];
                                 totalNumsDecimals[i2] = decimalPart?decimalPart.length:false;
                             }
-                            totalNums[i2] = (new BigNumber(item2)).plus(totalNums[i2]);
+                            totalNums[i2] = BigNumber(item2).plus(totalNums[i2]);
                         }
                     });
                 });
@@ -1702,10 +1719,34 @@
                 if(BigNumber.isBigNumber(money)) {
                     return money.toFormat(decimals);
                 }
-                return (new BigNumber(money)).toFormat(decimals);
+                return BigNumber(money).toFormat(decimals);
             } else {
                 return '';
             }
+        },
+        lineColor: function(myTable, lineColorConfig) {
+            var $table = $(myTable.elem),
+            layBox = $table.next().children('.layui-table-box').find('.layui-table-fixed-l, .layui-table-main');
+            // layHeader = $table.next().children('.layui-table-box').find('.layui-table-header'),
+            // layFixRight = $table.next().children('.layui-table-box').find('.layui-table-fixed-r');
+
+            
+            // layBox.find('.layui-table-body').find('.layui-form-checkbox').on('click', function(event){
+            //     event.stopPropagation();
+            // });
+
+            layBox.find('tbody').children('tr').on('click', function(event){
+                let dataIndex = $(this).attr('data-index');
+                if($(this).attr('style')) {
+                    layBox.find('tr[data-index=' + dataIndex + ']').css('background-color', '');
+                }else {
+                    layBox.find('tr[data-index=' + dataIndex + ']').css('background-color', '#bfdbf7');
+                }
+                layBox.find('tr[data-index!=' + dataIndex + ']').css('background-color', '');
+            });
+            // layHeader.find('tr').on('click', function(){
+            //     layBox.find('tr').css('background-color', '');
+            // })
         }
     }
 
