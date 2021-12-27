@@ -23,7 +23,7 @@
           contextmenu: false, // 右键菜单
           fixResize: false, // 修改有固定列的拖动列宽的位置为左边线
           overflow: false, // 自定义内容超出样式
-          fixFixedScroll: false, // 固定列支持鼠标滚轮滚动
+          fixFixedScroll: true, // 固定列支持鼠标滚轮滚动
           filter: false  // 筛选及记忆相关
       },
       _BODY = $('body'),
@@ -73,7 +73,9 @@
                 this.autoColumnWidth(myTable, curConfig.autoColumnWidth)
             }
 
-            this.contextmenu(myTable, curConfig.contextmenu);
+            if(curConfig.contextmenu) {
+                this.contextmenu(myTable, curConfig.contextmenu);
+            }
 
             if (curConfig.fixResize) {
                 this.fixResizeRightFixed(myTable);
@@ -1577,10 +1579,10 @@
                 let element = $([
                     '<div class="layui-table-operand" status="" title="收缩栏" lay-event="LAYTABLE_OPERAND_TOOL">',
                         '<div class="layui-table-operand-panel">',
-                            '<div class="layui-table-operand-btn-next">',
+                            '<div class="layui-table-operand-btn-next" title="收缩">',
                             '<i class="layui-icon layui-icon-next"></i>',
                             '</div>',
-                            '<div class="layui-table-operand-btn-prev" style="display: none;">',
+                            '<div class="layui-table-operand-btn-prev" title="展开" style="display: none;">',
                             '<i class="layui-icon layui-icon-prev"></i>',
                             '</div>',
                         '</div>',
@@ -1691,17 +1693,30 @@
                     });
                 });
 
-                layui.each(myTable.data, function(i1, item1){
-                    layui.each(item1, function(i2, item2){
-                        if(totalCols[i2] && item2 != null) {
+                // layui.each(myTable.data, function(i1, item1){
+                //     layui.each(item1, function(i2, item2){
+                //         if(totalCols[i2] && item2 != null) {
+                //             if(totalNumsDecimals[i2] === false) {
+                //                 let decimalPart = String(item2).split('.')[1];
+                //                 totalNumsDecimals[i2] = decimalPart?decimalPart.length:false;
+                //             }
+                //             totalNums[i2] = BigNumber(item2).plus(totalNums[i2]);
+                //         }
+                //     });
+                // });
+                for (rowIndex in myTable.data) {
+                    for (colIndex in myTable.data[rowIndex]) {
+                        let item2 = myTable.data[rowIndex][colIndex];
+                        let i2 = colIndex;
+                        if(totalCols[colIndex] && item2 != null) {
                             if(totalNumsDecimals[i2] === false) {
                                 let decimalPart = String(item2).split('.')[1];
                                 totalNumsDecimals[i2] = decimalPart?decimalPart.length:false;
                             }
                             totalNums[i2] = BigNumber(item2).plus(totalNums[i2]);
                         }
-                    });
-                });
+                    }
+                }
                 $.each(divCell, function (index, item) {
                     let fieldName = $(item).parent().attr('data-field');
                     if(totalNums[fieldName]) {
@@ -1737,12 +1752,12 @@
 
             layBox.find('tbody').children('tr').on('click', function(event){
                 let dataIndex = $(this).attr('data-index');
-                if($(this).attr('style')) {
-                    layBox.find('tr[data-index=' + dataIndex + ']').css('background-color', '');
+                if($(this).hasClass('line-background')) {
+                    layBox.find('tr[data-index=' + dataIndex + ']').removeClass('line-background');
                 }else {
-                    layBox.find('tr[data-index=' + dataIndex + ']').css('background-color', '#bfdbf7');
+                    layBox.find('tr[data-index=' + dataIndex + ']').addClass('line-background');
                 }
-                layBox.find('tr[data-index!=' + dataIndex + ']').css('background-color', '');
+                layBox.find('tr[data-index!=' + dataIndex + ']').removeClass('line-background');
             });
             // layHeader.find('tr').on('click', function(){
             //     layBox.find('tr').css('background-color', '');

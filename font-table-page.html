@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="format-detection" content="telephone=no">
-    <link rel="stylesheet" href="layui/css/layui.css" media="all"/>
+    <link rel="stylesheet" href="layui_2.6.7/css/layui.css" media="all"/>
     <link rel="stylesheet" href="soulTable.css" media="all"/>
 </head>
 <body>
@@ -49,7 +49,7 @@
     <a type="button" class="" lay-event="show">查看</a>
     <a type="button" class="" lay-event="edit">编辑</a>
 </script>
-<script type="text/javascript" src="layui/layui.js"></script>
+<script type="text/javascript" src="layui_2.6.7/layui.js"></script>
 <script>
     // 自定义模块
     layui.config({
@@ -75,13 +75,15 @@
                 , groups: 3
                 , curr: 1
                 , next: '<i class="layui-icon"></i>'
-                , limit: 10000
+                , limit: 100
                 , limits: [20, 50, 100, 1000, 10000]
                 , layout: ['prev', 'page', 'next', 'skip', 'count', 'limit']
             }
             ,cols: getCols()
             ,done: function () {
+                console.time('soulTable')
                 soulTable.render(this)
+                console.timeEnd('soulTable')
             }
             , operandFlexBar: {status: 'show', unfoldMoreSerach: {minHeight: 'full-205', maxHeight: 'full-295'}}
         });
@@ -114,8 +116,8 @@
 
         function getCols() {
             return [[ //表头
-                {title:'NO.', type:'numbers', totalRowText: '合计'}
-                , {field: 'data_source', title: '类型', width: '200', align: 'center'}
+                {title:'NO.', type:'numbers', totalRowText: '合计', fixed: 'left'}
+                , {field: 'data_source', title: '类型', width: '200', align: 'center', fixed: 'left'}
                 , {field: 'status', title: '推送共享状态', width: '200', align: 'center'}
                 , {field: 'data_type', title: '数据类型', width: '200', align: 'center'}
                 , {field: 'id', title: '订单流水号', width: '300', align: 'center'}

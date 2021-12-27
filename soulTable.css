@@ -822,3 +822,7 @@
     transition: all .3s;
     -webkit-transition: all .3s;
 }
+
+.line-background {
+    background-color: #bfdbf7!important;
+}
