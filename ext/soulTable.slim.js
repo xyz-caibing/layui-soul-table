@@ -1,10 +1,10 @@
 /**
  *
- * @name:  表格增强插件-独立版本分支
- * @author: caibing
+ * @name:  基于soulTable开源代码-表格增强插件-独立版本分支
+ * @author: caibing(菜饼)
  * @link: https://github.com/xyz-caibing/layui-soul-table.git
  * @license: MIT
- * @version: v1.6.2.1
+ * @version: v1.6.2.2
  */
  layui.define(['table'], function (exports) {
 
@@ -17,10 +17,25 @@
           lineColor: true,
           operandFlexBar: false,  //默认关闭操作收缩栏 ，开启配置 {status: 'show'}  查询收缩栏 ，开启配置 {minHeight: 'full-160', maxHeight: 'full-190'}
           fixTotal: true, // 修复合计行固定列问题
-          drag: false, // 列拖动
+          drag: {type: 'simple', toolbar: false}, // 列拖动
           rowDrag: false, // 行拖动
           autoColumnWidth: false, // 自动列宽
-          contextmenu: false, // 右键菜单
+          contextmenu: { header: [
+                {
+                    name: '左固定', // 显示的菜单名
+                    icon: 'layui-icon layui-icon-align-left', // 显示图标
+                    click: function(obj) {
+                        mod.fixedChoose(this, obj.elem, 'left');
+                    }
+                },{
+                    name: '取消固定', // 显示的菜单名
+                    icon: 'layui-icon layui-icon-align-center', // 显示图标
+                    click: function(obj) { //点击事件
+                        mod.fixedChoose(this, obj.elem, 'none');
+                    }
+                }
+            ]
+          }, // 右键菜单
           fixResize: false, // 修改有固定列的拖动列宽的位置为左边线
           overflow: false, // 自定义内容超出样式
           fixFixedScroll: true, // 固定列支持鼠标滚轮滚动
@@ -192,6 +207,7 @@
             });
         }
         , autoColumnWidth: function (myTable, autoColumnWidthConfig) {
+
             var _this = this;
             if (typeof myTable === 'object') {
                 innerColumnWidth(_this, myTable)
@@ -522,20 +538,20 @@
                                       })
                                   }
 
-                                  /* 拖动隐藏列 */
-                                  if (e.clientY - originTop < -15) {
-                                      if ($('#column-remove').length === 0) {
-                                          _BODY.append('<i id="column-remove" class="layui-red layui-icon layui-icon-delete"></i>')
-                                      }
-                                      $('#column-remove').css({
-                                          top: e.clientY - $('#column-remove').height() / 2,
-                                          left: e.clientX - $('#column-remove').width() / 2,
-                                          'font-size': (originTop - e.clientY) + 'px'
-                                      })
-                                      $('#column-remove').show();
-                                  } else {
-                                      $('#column-remove').hide();
-                                  }
+                                //   /* 拖动隐藏列 */
+                                //   if (e.clientY - originTop < -15) {
+                                //       if ($('#column-remove').length === 0) {
+                                //           _BODY.append('<i id="column-remove" class="layui-red layui-icon layui-icon-delete"></i>')
+                                //       }
+                                //       $('#column-remove').css({
+                                //           top: e.clientY - $('#column-remove').height() / 2,
+                                //           left: e.clientX - $('#column-remove').width() / 2,
+                                //           'font-size': (originTop - e.clientY) + 'px'
+                                //       })
+                                //       $('#column-remove').show();
+                                //   } else {
+                                //       $('#column-remove').hide();
+                                //   }
                               }
                           }).on('mouseup', function () {
                               _DOC.unbind("selectstart");
@@ -755,7 +771,7 @@
 
                                                   _this.fixTableRemember(myTable);
                                               }
-                                              table.reload(tableId)
+                                              table.reload(tableId);
                                           }
                                           $dragBar.removeClass('active')
                                       }
@@ -774,6 +790,7 @@
                                       $('#soul-columns' + tableId).find('li[data-value="' + field + '"]>input').prop('checked', false);
                                   }
                                   $('#column-remove').hide();
+                                  table.reload(tableId);
                               }
                           })
                       });
@@ -1096,7 +1113,7 @@
         contextmenu: function (myTable, contextmenuConfig) {
             var $table = $(myTable.elem),
               $tableBox = $table.next().children('.layui-table-box'),
-              $tableHead = $.merge($tableBox.children('.layui-table-header').children('table'), $tableBox.children('.layui-table-fixed').children('.layui-table-header').children('table')),
+              $tableHead = $.merge($tableBox.children('.layui-table-header').children('table'), $tableBox.children('.layui-table-fixed-l').children('.layui-table-header').children('table')),
               $fixedBody = $tableBox.children('.layui-table-fixed').children('.layui-table-body').children('table'),
               $tableBody = $.merge($tableBox.children('.layui-table-body').children('table'), $fixedBody),
               $totalTable = $table.next().children('.layui-table-total').children('table'),
@@ -1273,7 +1290,7 @@
                 if ($fixedLeft.length > 0) {
                     this.addCSSRule(sheet, '.layui-table-total-fixed-l .layui-table-patch', 'display: none')
                     $table.next().css('position', 'relative');
-                    html.push('<table style="position: absolute;background-color: #fff;left: 0;top: ' + ($total.position().top + 1) + 'px" cellspacing="0" cellpadding="0" border="0" class="layui-table layui-table-total-fixed layui-table-total-fixed-l"><tbody><tr>');
+                    html.push('<table style="position: absolute;background-color: #fff;left: 0;bottom: ' + (-7) + 'px" cellspacing="0" cellpadding="0" border="0" class="layui-table layui-table-total-fixed layui-table-total-fixed-l"><tbody><tr>');
                     $fixedLeft.each(function () {
                         if ($(this).data('key')) {
                             html.push($total.children('table:eq(0)').find('[data-key="' + $(this).data('key') + '"]').prop("outerHTML"))
@@ -1287,7 +1304,7 @@
                     this.addCSSRule(sheet, '.layui-table-total-fixed-r td:last-child', 'border-left: none')
                     $table.next().css('position', 'relative');
                     html = [];
-                    html.push('<table style="position: absolute;background-color: #fff;right: 0;top: ' + ($total.position().top + 1) + 'px" cellspacing="0" cellpadding="0" border="0" class="layui-table layui-table-total-fixed layui-table-total-fixed-r"><tbody><tr>');
+                    html.push('<table style="position: absolute;background-color: #fff;right: 0;bottom: ' + (-7) + 'px" cellspacing="0" cellpadding="0" border="0" class="layui-table layui-table-total-fixed layui-table-total-fixed-r"><tbody><tr>');
                     $fixedRight.each(function () {
                         html.push($total.children('table:eq(0)').find('[data-key="' + $(this).data('key') + '"]').prop("outerHTML"))
                     })
@@ -1572,7 +1589,7 @@
                     tableTotal = $(myTable.elem).next().children('.layui-table-total');
                 //判断是否存在操作列
                 if(!tableBox.children('.layui-table-fixed-r').hasClass('layui-table-fixed-r')) {
-                    console.log('不存在操作列');
+                    // console.log('不存在操作列');
                     return false;
                 }
 
@@ -1625,7 +1642,7 @@
             function innerUnfoldMoreSerach(myTable, unfoldMoreSerachConfig) {
                 //判断highSearch 是否存在
                 if(!_BODY.find('form:first').children('.highSearch').hasClass('highSearch')) {
-                    console.log('不存在高级查询');
+                    // console.log('不存在高级查询');
                     return false;
                 }
                 let tableOperandElem = $(myTable.elem).next().children('.layui-table-box').children('.layui-table-operand');
@@ -1762,7 +1779,77 @@
             // layHeader.find('tr').on('click', function(){
             //     layBox.find('tr').css('background-color', '');
             // })
+        },
+        fixedChoose: function(myTable, oTr, type) {
+
+            if (myTable.cols.length > 1) {
+                // 如果是复杂表头，则自动禁用拖动效果
+                return;
+            }
+            var _this = this,
+             key = oTr.data('key'),
+             field = oTr.data('field'),
+             tableId = myTable.id;
+            if (!key) {
+                return;
+            }
+            
+            var keyArray = key.split('-'),
+                curColumn = myTable.cols[keyArray[1]][keyArray[2]],
+                curKey = keyArray[1] + '-' + keyArray[2];
+
+            //如果列原来就是固定的则不处理
+            if(curColumn.fixed && curColumn.fixed == type) {
+                return;
+            }
+            //如果列原来就是不固定的则不处理
+            if(!curColumn.fixed && type == 'none') {
+                return;
+            }
+            if(!curColumn.field) {
+                return ;
+            }
+
+            //列移到固定列
+            var targetFix = type,
+                i, j, curPos, targetPos;
+            for (i = 0; i < myTable.cols.length; i++) {
+                for (j = 0; j < myTable.cols[i].length; j++) {
+                    if (targetFix === 'right' || (targetFix === 'none' && type === 'right')) {
+                        if (typeof targetPos === 'undefined') {
+                            if (myTable.cols[i][j].fixed === 'right') {
+                                targetPos = {x: i, y: j};
+                            } else if (j === myTable.cols[i].length - 1) {
+                                targetPos = {x: i, y: j + 1};
+                            }
+
+                        }
+                    } else {
+                        if (typeof targetPos === 'undefined' && (!myTable.cols[i][j].fixed || myTable.cols[i][j].fixed === 'right')) {
+                            targetPos = {x: i, y: j};
+                        }
+                    }
+                    if (myTable.cols[i][j].key === curKey) {
+                        curPos = {x: i, y: j};
+                    }
+                }
+            }
+            curColumn['fixed'] = targetFix === 'none' ? false : targetFix;
+
+            if (curPos.y !== targetPos.y) {
+                myTable.cols[curPos.x].splice(curPos.y, 1);
+
+                if (curPos.y < targetPos.y) {
+                    targetPos.y -= 1
+                }
+
+                myTable.cols[targetPos.x].splice(targetPos.y, 0, curColumn)
+
+                _this.fixTableRemember(myTable);
+            }
+            table.reload(tableId);
         }
+
     }
 
     // 输出

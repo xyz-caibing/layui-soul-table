@@ -440,10 +440,10 @@
     padding: 10px;
     cursor: crosshair;
     width: 62px;
-    background-color: rgba(0, 150, 136, 0.5);
+    background-color: rgba(0, 128, 255, 0.5);
 }
 .soul-drag-bar > div.active, .soul-drag-bar[data-type='left']>div[data-type='left'], .soul-drag-bar[data-type='right']>div[data-type='right'], .soul-drag-bar[data-type='none']>div[data-type='none']  {
-    background-color: rgb(0, 150, 136);
+    background-color: rgb(0, 128, 255);
 }
 
 /* 动画 */

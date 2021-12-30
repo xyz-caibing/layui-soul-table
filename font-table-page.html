@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="format-detection" content="telephone=no">
-    <link rel="stylesheet" href="layui_2.6.7/css/layui.css" media="all"/>
+    <link rel="stylesheet" href="layui/css/layui.css" media="all"/>
     <link rel="stylesheet" href="soulTable.css" media="all"/>
 </head>
 <body>
@@ -34,6 +34,14 @@
             </div>
         </div>
     </div>
+    <div class="layui-col-lg3 layui-col-md4">
+        <div class="layui-inline">
+            <label class="layui-form-label">内容</label>
+            <div class="layui-input-inline">
+                <input placeholder="请选择" readonly="readonly" class=" layui-input" id="create_time" value="" autocomplete="off">
+            </div>
+        </div>
+    </div>
     <div class="layui-col-lg1 layui-col-md1 layui-col-sm2 layui-col-xs3">
         <button class="layui-btn mgl-20" lay-submit="" lay-filter="search"><i class="layui-icon">&#xe615;</i>查询</button>
     </div>
@@ -49,7 +57,8 @@
     <a type="button" class="" lay-event="show">查看</a>
     <a type="button" class="" lay-event="edit">编辑</a>
 </script>
-<script type="text/javascript" src="layui_2.6.7/layui.js"></script>
+<script type="text/javascript" src="bignumber.min.js"></script>
+<script type="text/javascript" src="layui/layui.js"></script>
 <script>
     // 自定义模块
     layui.config({
@@ -59,16 +68,18 @@
         soulTable: 'soulTable.slim'
     });
 
-    layui.use(['form', 'table','soulTable'], function () {
+    layui.use(['form', 'table','soulTable','laydate'], function () {
         var table = layui.table,
             soulTable = layui.soulTable,
+            laydate = layui.laydate,
             $ = layui.$,
             form = layui.form;
 
+        createLayDateTimeRange('create_time', laydate);
         var myTable = table.render({
             elem: '#myTable'
             , defaultToolbar: ['filter']
-            ,height: $(document).height() - $('#myTable').offset().top - 20
+            ,height: 'full-50'
             ,page: {
                 count: 1000000 //数据总数，从服务端得到
                 , prev: '<i class="layui-icon"></i>'
@@ -80,6 +91,7 @@
                 , layout: ['prev', 'page', 'next', 'skip', 'count', 'limit']
             }
             ,cols: getCols()
+            ,totalRow: true
             ,done: function () {
                 console.time('soulTable')
                 soulTable.render(this)
@@ -89,7 +101,7 @@
         });
         search({});
         function search(data) {
-            var loading = layer.load(2);
+            // var loading = layer.load(2);
             $.ajax({
                 url: 'data.json',
                 data: data,
@@ -103,7 +115,7 @@
                     })
                 },
                 complete: function () {
-                    layer.close(loading)
+                    // layer.close(loading)
                 }
             })
         }
@@ -113,6 +125,68 @@
         form.on('submit(export)', function () {
             soulTable.export(myTable);
         })
+
+        function createLayDateTimeRange(elemId, laydate, setDefaultNow = false, btns = ['clear', 'now', 'confirm']) {
+            laydate.render({
+                elem: '#' + elemId
+                , type: 'datetime'
+                , trigger: 'click'
+                , range: '-'
+                , format: 'yyyy-MM-dd HH:mm:ss'
+                , btns: btns
+                , done: function (value, startDate, endDate) {
+                    let elem = $(this)[0].elem;
+                    if(value == '') {
+                        elem.attr('start', '').attr('end', '');
+                    }else {
+                        let start = startDate.year + '-' + startDate.month + '-' + startDate.date + ' ' + startDate.hours + ':' + startDate.minutes + ':' + startDate.seconds;
+                        let end = endDate.year + '-' + endDate.month + '-' + endDate.date + ' ' + endDate.hours + ':' + endDate.minutes + ':' + endDate.seconds;
+                        elem.attr('start', start).attr('end', end);
+                    }
+                }
+            });
+            if(setDefaultNow) {
+                
+                let startMonth, startDay, endMonth, endDay, startHms, endHms;
+                let date = new Date();
+
+                let currMonth = Number(date.getMonth() + 1);
+                if(setDefaultNow.start) {
+                    startMonth = (currMonth + setDefaultNow.start.m);
+                    startDay = setDefaultNow.start.d;
+                    startHms = setDefaultNow.start.Hms || '00:00:00';
+                }else {//默认当月1号
+                    startMonth = currMonth;
+                    startDay = 1;
+                    startHms = '00:00:00';
+                }
+                if(setDefaultNow.end) {
+                    endMonth = (currMonth + setDefaultNow.end.m);
+                    
+                    if(setDefaultNow.end.d == 0) {
+                        endDay = laydate.getEndDate(currMonth);
+                    }else{
+                        endDay = setDefaultNow.end.d;
+                    }
+                    endHms = setDefaultNow.end.Hms || '00:00:00';
+                }else {//默认当月今天
+                    endMonth = currMonth;
+                    endDay = date.getDate();
+                    endHms = '00:00:00';
+                }
+
+                let start = date.getFullYear().toString() + 
+                    '-' + startMonth.toString().padStart(2, '0') + 
+                    '-' + startDay.toString().padStart(2, '0') + 
+                    ' ' + startHms;
+                let end = date.getFullYear().toString() + 
+                    '-' + endMonth.toString().padStart(2, '0') + 
+                    '-' + endDay.toString().padStart(2, '0') + 
+                    ' ' + endHms;
+
+                $('#' + elemId).val(start + ' - ' + end).attr('start', start).attr('end', end);
+            }
+        }
 
         function getCols() {
             return [[ //表头
@@ -132,10 +206,10 @@
                 , {field: 'fee_code', title: '费用大类', width: '200', align: 'center'}
                 , {field: 'sub_fee_code', title: '费用小类', width: '250', align: 'center'}
                 , {field: 'currency_code', hide: true, title: '币种', width: '250', align: 'center'}
-                , {field: 'original_amount', hide: true, title: '原始金额', width: '250', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
+                , {field: 'original_amount', title: '原始金额', width: '250', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
                         return d.original_amount;
                     }}
-                , {field: 'amount', hide: true, title: '金额', width: '250', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
+                , {field: 'amount', title: '金额', width: '250', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
                         return d.amount;
                     }}
                 , {field: 'settle_exchange_rate', hide: true, title: '结算汇率', width: '250', align: 'center'}
@@ -188,6 +262,7 @@
                 , {field: 'offset_status', hide: true, title: '是否冲销', width: '200', align: 'center'}
                 , {field: 'pricing_rules_code', hide: true, title: '定价规则编码', width: '200', align: 'center'}
                 , {field: 'create_time', title: '创建时间', width: '200', align: 'center'}
+                , {title: '操作', width: '200', align: 'center', fixed: 'right'}
             ]];
         }
     })
