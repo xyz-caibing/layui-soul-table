@@ -191,19 +191,19 @@
         function getCols() {
             return [[ //表头
                 {title:'NO.', type:'numbers', totalRowText: '合计', fixed: 'left'}
-                , {field: 'data_source', title: '类型', width: '200', align: 'center', fixed: 'left'}
-                , {field: 'status', title: '推送共享状态', width: '200', align: 'center'}
-                , {field: 'data_type', title: '数据类型', width: '200', align: 'center'}
+                , {field: 'data_source', title: '类型', width: '120', align: 'center', fixed: 'left'}
+                , {field: 'status', title: '推送共享状态', width: '120', align: 'center'}
+                , {field: 'data_type', title: '数据类型', width: '120', align: 'center'}
                 , {field: 'id', title: '订单流水号', width: '300', align: 'center'}
-                , {field: 'connect_id', title: '关联订单流水号', width: '200', align: 'center'}
-                , {field: 'business_num', title: '业务单号', width: '200', align: 'center'}
-                , {field: 'company_code', title: '公司编码', width: '200', align: 'center'}
-                , {field: 'company_name', title: '公司名称', width: '200', align: 'center'}
-                , {field: 'contact_company_code', title: '往来公司编码', width: '200', align: 'center'}
-                , {field: 'customer_code', hide: true, title: '往来客户代码', width: '200', align: 'center'}
-                , {field: 'contact_company_name', title: '往来公司名称', width: '200', align: 'center'}
-                , {field: 'external_customer_code', hide: true, title: '外部客户代码', width: '200', align: 'center'}
-                , {field: 'fee_code', title: '费用大类', width: '200', align: 'center'}
+                , {field: 'connect_id', title: '关联订单流水号', width: '120', align: 'center'}
+                , {field: 'business_num', title: '业务单号', width: '120', align: 'center'}
+                , {field: 'company_code', title: '公司编码', width: '120', align: 'center'}
+                , {field: 'company_name', title: '公司名称', width: '120', align: 'center'}
+                , {field: 'contact_company_code', title: '往来公司编码', width: '120', align: 'center'}
+                , {field: 'customer_code', hide: true, title: '往来客户代码', width: '120', align: 'center'}
+                , {field: 'contact_company_name', title: '往来公司名称', width: '120', align: 'center'}
+                , {field: 'external_customer_code', hide: true, title: '外部客户代码', width: '120', align: 'center'}
+                , {field: 'fee_code', title: '费用大类', width: '120', align: 'center'}
                 , {field: 'sub_fee_code', title: '费用小类', width: '250', align: 'center'}
                 , {field: 'currency_code', hide: true, title: '币种', width: '250', align: 'center'}
                 , {field: 'original_amount', title: '原始金额', width: '250', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
@@ -213,7 +213,7 @@
                         return d.amount;
                     }}
                 , {field: 'settle_exchange_rate', hide: true, title: '结算汇率', width: '250', align: 'center'}
-                , {field: 'settle_amount', title: '结算金额', width: '200', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
+                , {field: 'settle_amount', title: '结算金额', width: '120', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
                         return d.settle_amount;
                     }}
                 , {field: 'settle_amount_compute', title: '结算金额（计算值）', width: '220', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
@@ -222,14 +222,14 @@
                 , {field: 'settle_amount_last', title: '进位差异', width: '220', totalCol:true, align: 'right', style:'text-align:right', templet: function(d){
                         return d.settle_amount_last;
                     }}
-                , {field: 'settle_currency_code',  title: '结算币种', width: '200', align: 'center'}
-                , {field: 'product_line', hide: true,  title: '产品线', width: '200', align: 'center'}
-                , {field: 'flow_type', hide: true,  title: '流水类型', width: '200', align: 'center'}
-                , {field: 'fee_time', hide: true,  title: '费用发生时间', width: '200', align: 'center'}
-                , {field: 'billing_date',  title: '账务日期', width: '200', align: 'center'}
-                , {field: 'volume', hide: true,  title: '体积', width: '200', align: 'center'}
-                , {field: 'volume_unit', hide: true,  title: '体积单位', width: '200', align: 'center'}
-                , {field: 'track_number', hide: true,  title: '跟踪号', width: '200', align: 'center'}
+                , {field: 'settle_currency_code',  title: '结算币种', width: '120', align: 'center'}
+                , {field: 'product_line', hide: true,  title: '产品线', width: '120', align: 'center'}
+                , {field: 'flow_type', hide: true,  title: '流水类型', width: '120', align: 'center'}
+                , {field: 'fee_time', hide: true,  title: '费用发生时间', width: '120', align: 'center'}
+                , {field: 'billing_date',  title: '账务日期', width: '120', align: 'center'}
+                , {field: 'volume', hide: true,  title: '体积', width: '120', align: 'center'}
+                , {field: 'volume_unit', hide: true,  title: '体积单位', width: '120', align: 'center'}
+                , {field: 'track_number', hide: true,  title: '跟踪号', width: '120', align: 'center'}
                 , {field: 'cabinet_number', hide: true,  title: '柜号', width: '200', align: 'center'}
                 , {field: 'size_length', hide: true,  title: '收入长', width: '200', align: 'center'}
                 , {field: 'size_width', hide: true,  title: '收入宽', width: '200', align: 'center'}

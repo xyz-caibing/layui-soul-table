@@ -19,7 +19,7 @@
           fixTotal: true, // 修复合计行固定列问题
           drag: {type: 'simple', toolbar: false}, // 列拖动
           rowDrag: false, // 行拖动
-          autoColumnWidth: false, // 自动列宽
+          autoColumnWidth: {init:true}, // 自动列宽
           contextmenu: { header: [
                 {
                     name: '左固定', // 显示的菜单名
@@ -105,6 +105,8 @@
             }
 
             if (curConfig.operandFlexBar) {
+                //默认开启缓存
+                curConfig.operandFlexBar.cache = true;
                 this.operandFlexBar(myTable, curConfig.operandFlexBar);
             }
 
@@ -207,15 +209,23 @@
             });
         }
         , autoColumnWidth: function (myTable, autoColumnWidthConfig) {
-
             var _this = this;
+            layui.data(myTable.id, {
+                key: 'autoColumnWidth'
+                ,value: true
+              });
+              layui.data(myTable.id, {
+                key: 'autoColumnWidth1'
+                ,value: true
+              });
+
             if (typeof myTable === 'object') {
-                innerColumnWidth(_this, myTable)
+                innerColumnWidth(_this, myTable);
             } else if (typeof myTable === 'string') {
-                innerColumnWidth(_this, tables[myTable])
+                innerColumnWidth(_this, tables[myTable]);
             } else if (typeof myTable === 'undefined') {
                 layui.each(tables, function () {
-                    innerColumnWidth(_this, this)
+                    innerColumnWidth(_this, this);
                 });
             }
 
@@ -1543,44 +1553,10 @@
         },
         operandFlexBar: function (myTable, operandFlexBarConfig) {
             var _this = this;
-            let CacheObj = {
-                key: 'OperandFlexBar',
-                setCache: function(myTable, data) {
-                    let storeKey = 'origin_' + CacheObj.key + myTable.id;  //TODO table id 不唯一bug
-                    if (!operandFlexBarConfig.cache) {
-                        localStorage.removeItem(storeKey);
-                        return false;
-                    }
-                    localStorage.setItem(storeKey, _this.deepStringify(data));
-                },
-                getCache:function (myTable) {
-                    let storeKey = 'origin_' + CacheObj.key + myTable.id;
-                    if (!operandFlexBarConfig.cache) {
-                        localStorage.removeItem(storeKey);
-                        return false;
-                    }
-                    if(localStorage.getItem(storeKey)==null) {
-                        return false;
-                    }
-                    return _this.deepParse(localStorage.getItem(storeKey));
-                }
-            }
-            //默认开启缓存
-            if(operandFlexBarConfig.cache == undefined) {
-                operandFlexBarConfig.cache = true;
-            }
 
-            if (typeof myTable === 'object') {
-                innerFlexBar(_this, myTable)
-            } else if (typeof myTable === 'string') {
-                innerFlexBar(_this, tables[myTable])
-            } else if (typeof myTable === 'undefined') {
-                layui.each(tables, function () {
-                    innerFlexBar(_this, this)
-                });
-            }
+            innerFlexBar(_this, myTable, 'OperandFlexBar');
 
-            function innerFlexBar(_this, myTable) {
+            function innerFlexBar(_this, myTable, key) {
                 if(operandFlexBarConfig.unfoldMoreSerach) {
                     innerUnfoldMoreSerach(myTable, operandFlexBarConfig.unfoldMoreSerach);
                 }
@@ -1614,7 +1590,11 @@
                     element.find('.layui-table-operand-btn-prev').show();
                     $(this).hide();
                     
-                    CacheObj.setCache(myTable, {status: 'hide'});
+                    if (!operandFlexBarConfig.cache) {
+                        _this.LocalCache.del(myTable.id, key);
+                        return false;
+                    }
+                    _this.LocalCache.set(myTable.id, key, 'hide');
                 });
                 element.find('.layui-table-operand-btn-prev').click(function(){
                     tableBox.children('.layui-table-fixed-r').show();
@@ -1623,15 +1603,24 @@
                     element.find('.layui-table-operand-btn-next').show();
                     $(this).hide();
 
-                    CacheObj.setCache(myTable, {status: 'show'});
+                    if (!operandFlexBarConfig.cache) {
+                        _this.LocalCache.del(myTable.id, key);
+                        return false;
+                    }
+                    _this.LocalCache.set(myTable.id, key, 'show');
                 });
                 tableBox.find('.layui-table-operand').remove();
                 tableBox.append(element);
 
-                let cache = CacheObj.getCache(myTable);
-                if(cache) {
-                    operandFlexBarConfig.status = cache.status;
+                if (operandFlexBarConfig.cache) {
+                    let cStatus = _this.LocalCache.get(myTable.id, key);
+                    if(cStatus) {
+                        operandFlexBarConfig.status = cStatus;
+                    }
+                }else {
+                    _this.LocalCache.del(myTable.id, key);
                 }
+                
                 if(operandFlexBarConfig.status == 'hide') {
                     element.find('.layui-table-operand-btn-next').click();
                 } else if(operandFlexBarConfig.status == 'show') {
@@ -1848,6 +1837,21 @@
                 _this.fixTableRemember(myTable);
             }
             table.reload(tableId);
+        },
+        LocalCache: {
+            set: function(key, field, value){
+                layui.data(key, {key: field, value: mod.deepStringify(value)});
+            },
+            get: function(key, field){
+                let hData = layui.data(key);
+                if(!hData[field]) {
+                    return false;
+                }
+                return mod.deepParse(hData[field]);
+            },
+            del: function(key, field) {
+                layui.data(key, {key: field, remove: true});
+            }
         }
 
     }
