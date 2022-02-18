@@ -49,7 +49,8 @@
         <button class="layui-btn mgl-20" lay-submit="" lay-filter="export"><i class="layui-icon">&#xe615;</i>导出</button>
     </div>
 </div>
-<table id="myTable" ></table>
+<table id="myTable" lay-filter="myTable"></table>
+<div id="paging"></div>
 <script type="text/html" id="author">
 {{ d.author }} + 1
 </script>
@@ -63,43 +64,85 @@
     // 自定义模块
     layui.config({
         base: 'ext/',   // 模块目录
-        version: 'v1.6.3'
+        version: 'v1.6.4'
     }).extend({                         // 模块别名
-        soulTable: 'soulTable.slim'
+        soulTable: 'soulTable.slim',
     });
 
-    layui.use(['form', 'table','soulTable','laydate'], function () {
+    layui.use(['form', 'table','soulTable','laydate', 'laypage'], function () {
         var table = layui.table,
             soulTable = layui.soulTable,
             laydate = layui.laydate,
+            laypage = layui.laypage,
             $ = layui.$,
             form = layui.form;
 
-        createLayDateTimeRange('create_time', laydate);
-        var myTable = table.render({
-            elem: '#myTable'
-            , defaultToolbar: ['filter']
-            ,height: 'full-50'
-            ,page: {
-                count: 1000000 //数据总数，从服务端得到
-                , prev: '<i class="layui-icon"></i>'
+        function createLayPage(elemId, laypage, page, limit, total, jump) {
+            laypage.render({
+                elem: elemId
+                , count: total
+                , prev: '<i class="layui-icon">&#xe603;</i>'
                 , groups: 3
-                , curr: 1
-                , next: '<i class="layui-icon"></i>'
-                , limit: 100
-                , limits: [20, 50, 100, 1000, 10000]
+                // ,first: false
+                // ,last: false
+                , curr: page
+                , next: '<i class="layui-icon">&#xe602;</i>'
+                , limit: limit
+                , limits: [20, 50, 100, 1000]
                 , layout: ['prev', 'page', 'next', 'skip', 'count', 'limit']
-            }
-            ,cols: getCols()
-            ,totalRow: true
-            ,done: function () {
-                console.time('soulTable')
-                soulTable.render(this)
-                console.timeEnd('soulTable')
-            }
-            , operandFlexBar: {status: 'show', unfoldMoreSerach: {minHeight: 'full-205', maxHeight: 'full-295'}}
+                , jump: jump
+            });
+        }
+        createLayDateTimeRange('create_time', laydate);
+        function doTableRender(page = 1, limit = 20) {
+            $.ajax({
+                url: 'data.json',
+                data: {},
+                dataType: 'json',
+                success: function (res) {
+                    let tableData = res.data,
+                        total = 2000,
+                        msg = '',
+                        code = 200;
+                    table.render({
+                        elem: '#myTable'
+                        , defaultToolbar: ['filter']
+                        , height: 'full-150'
+                        , page: false
+                        , limit: limit
+                        // {
+                        //     count: 1000000 //数据总数，从服务端得到
+                        //     , prev: '<i class="layui-icon"></i>'
+                        //     , groups: 3
+                        //     , curr: 1
+                        //     , next: '<i class="layui-icon"></i>'
+                        //     , limit: 20
+                        //     , limits: [20, 50, 100, 1000, 5000]
+                        //     , layout: ['prev', 'page', 'next', 'skip', 'count', 'limit']
+                        // }
+                        , cols: getCols()
+                        , totalRow: true
+                        , data: tableData
+                        , done: function () {
+                            createLayPage('paging', laypage, page, limit, total, function(obj,first) {
+                                if(!first){
+                                    doTableRender(obj.curr, obj.limit);
+                                }
+                            });
+                            console.time('soulTable')
+                            soulTable.render(this);
+                            console.timeEnd('soulTable')
+                        }
+                        , operandFlexBar: {status: 'show', unfoldMoreSerach: {minHeight: 'full-205', maxHeight: 'full-295'}}
+                    });
+                }
+            });
+        }
+        doTableRender();
+        table.on('rowDouble(myTable)', function(obj) {
+            let d = obj.data;
+            layer.msg('双击', {'icon': 5});
         });
-        search({});
         function search(data) {
             // var loading = layer.load(2);
             $.ajax({
@@ -189,11 +232,12 @@
         }
 
         function getCols() {
-            return [[ //表头
-                {title:'NO.', type:'numbers', totalRowText: '合计', fixed: 'left'}
-                , {field: 'data_source', title: '类型', width: '120', align: 'center', fixed: 'left'}
+            return soulTable.getCurCols('myTable') || [[ //表头
+                {checkbox: true, title: '选择', fixed: 'left', contextmenu: false}
+                , {title:'NO.', type:'numbers', totalRowText: '合计', fixed: 'left'}
+                , {field: 'data_source', title: '类型', width: '120', align: 'center', fixed: 'left', filter: true, sort: true}
                 , {field: 'status', title: '推送共享状态', width: '120', align: 'center'}
-                , {field: 'data_type', title: '数据类型', width: '120', align: 'center'}
+                , {field: 'data_type', title: '数据类型', width: '120', align: 'center', filter: true, sort: true}
                 , {field: 'id', title: '订单流水号', width: '300', align: 'center'}
                 , {field: 'connect_id', title: '关联订单流水号', width: '120', align: 'center'}
                 , {field: 'business_num', title: '业务单号', width: '120', align: 'center'}
@@ -262,7 +306,7 @@
                 , {field: 'offset_status', hide: true, title: '是否冲销', width: '200', align: 'center'}
                 , {field: 'pricing_rules_code', hide: true, title: '定价规则编码', width: '200', align: 'center'}
                 , {field: 'create_time', title: '创建时间', width: '200', align: 'center'}
-                , {title: '操作', width: '200', align: 'center', fixed: 'right'}
+                , {title: '操作', width: '200', align: 'center', fixed: 'right', templet: '#bar',autoWidth: false}
             ]];
         }
     })

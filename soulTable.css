@@ -793,11 +793,11 @@
     left: auto;
     /* top: 50%; */
     z-index: 102;
-    right: 16px;
+    right: 34px;
 	/* border: 1px solid red; */
 	top: 33px;
     bottom: 16px;
-    width: 18PX;
+    /* width: 18PX; */
 }
 .layui-table-box .layui-table-operand .layui-table-operand-btn-next:hover {
     color: #000;
@@ -826,3 +826,5 @@
 .line-background {
     background-color: #bfdbf7!important;
 }
+
+.layui-table-serach{position: absolute; left: 0; top: 0; width: 100%; height: 100%!important; border-radius: 0; border:0;}

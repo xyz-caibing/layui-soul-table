@@ -668,7 +668,7 @@ layui.define(['table', 'form', 'laydate', 'util', 'excel', 'laytpl'], function (
                 $('#soul-condition' + tableId + ' input.value:last').on('input', function () {
                   updateTrWhere($(this).parents('tr:eq(0)'))
                 });
-              } else if ($(this).data('type') === 'search') {
+              } else if ($(this).data('type') === 'search') {debugger
                 /**
                  * 查询
                  */
@@ -1786,7 +1786,7 @@ layui.define(['table', 'form', 'laydate', 'util', 'excel', 'laytpl'], function (
             curr: 1 //重新从第 1 页开始
           }
         })
-      } else {
+      } else {debugger
         /**
          * 前端筛选
          */
@@ -2448,7 +2448,7 @@ layui.define(['table', 'form', 'laydate', 'util', 'excel', 'laytpl'], function (
             id: id,
             prefix: newPrefix
           });
-          if (refresh === true) {
+          if (refresh === true) {debugger
             _this.soulReload(myTable);
           }
         }
@@ -2517,7 +2517,7 @@ layui.define(['table', 'form', 'laydate', 'util', 'excel', 'laytpl'], function (
             }
           }
 
-          if (refresh === true) {
+          if (refresh === true) {debugger
             _this.soulReload(myTable);
           }
         }
@@ -2575,7 +2575,7 @@ layui.define(['table', 'form', 'laydate', 'util', 'excel', 'laytpl'], function (
           }
 
           // 是否立即更新
-          if (refresh === true) {
+          if (refresh === true) {debugger
             _this.soulReload(myTable);
           }
         }

@@ -12,14 +12,19 @@
       table = layui.table,
       HIDE = 'layui-hide',
       tables = {},
+      cacheWhere = [],
+      originData = [],
       originCols = {},
+      firstAutoColWidth = true,
       defaultConfig = { // 默认配置开关
+          adaptTableHeight: true,
+          lineSerachBox: true,
           lineColor: true,
           operandFlexBar: false,  //默认关闭操作收缩栏 ，开启配置 {status: 'show'}  查询收缩栏 ，开启配置 {minHeight: 'full-160', maxHeight: 'full-190'}
           fixTotal: true, // 修复合计行固定列问题
           drag: {type: 'simple', toolbar: false}, // 列拖动
           rowDrag: false, // 行拖动
-          autoColumnWidth: {init:true}, // 自动列宽
+          autoColumnWidth: {init:true, cache: true}, // 自动列宽
           contextmenu: { header: [
                 {
                     name: '左固定', // 显示的菜单名
@@ -39,35 +44,92 @@
           fixResize: false, // 修改有固定列的拖动列宽的位置为左边线
           overflow: false, // 自定义内容超出样式
           fixFixedScroll: true, // 固定列支持鼠标滚轮滚动
-          filter: false  // 筛选及记忆相关
+          filter: {items:['column'], cache: true}  // 筛选及记忆相关
       },
       _BODY = $('body'),
       _DOC = $(document);
 
     // 封装方法
     var mod = {
+        getCurCols: function(id) {
+            let key = location.pathname + location.hash + id;
+            let curTableSession = sessionStorage.getItem(key);
+            if(curTableSession) {
+                return this.deepParse(curTableSession);
+            }
+            return false;
+        },
+        reCols: function(myTable){
+            var _this = this,
+              $table = $(myTable.elem),
+              $tableBox = $table.next().children('.layui-table-box'),
+              $fixedHeaderLeft = $tableBox.children('.layui-table-fixed-l').children('.layui-table-header').children('table'),
+              $fixedBodyLeft = $tableBox.children('.layui-table-fixed-l').children('.layui-table-body').children('table'),
+              $fixedTotalLeft = $table.next().children('.layui-table-total').children('table.layui-table-total-fixed-l');
+
+            let leftCols = [];
+            layui.each(myTable.cols[0], function(k, v) {
+                if(v.fixed == 'left') {
+                    leftCols[v.field || k] = v.fixed;
+                }
+            });
+            $fixedHeaderLeft.find('th').each(function(){
+                let field = $(this).attr('data-field');
+                if(!leftCols[field]) {
+                    $(this).remove();
+                }
+            });
+            $fixedTotalLeft.find('td').each(function(){
+                let field = $(this).attr('data-field');
+                if(!leftCols[field]) {
+                    $(this).remove();
+                }
+            });
+            $fixedBodyLeft.find('td').each(function(){
+                let field = $(this).attr('data-field');
+                if(!leftCols[field]) {
+                    $(this).remove();
+                }
+            });
+
+        },
         render: function (myTable) {
+            //TODO 更新固定列dom
+            this.reCols(myTable);
             // 记录表格配置，方便直接通过 tableId 调用方法
-            tables[myTable.id] = myTable
+            tables[myTable.id] = myTable;
             var curConfig = $.extend({}, defaultConfig, myTable);
             if (curConfig.filter && curConfig.filter.cache) {
-                var storeKey = location.pathname + location.hash + myTable.id;
-                var colsStr = this.deepStringify(myTable.cols);
+                // var storeKey = location.pathname + location.hash + myTable.id;
+                // var colsStr = this.deepStringify(myTable.cols);
                 // 记录表格列的原始配置
-                if (!originCols[myTable.id]) { // 只在第一次 render 时生效
-                    originCols[myTable.id] = this.deepClone(myTable.cols)
+                // if (!originCols[myTable.id]) { // 只在第一次 render 时生效
+                    // originCols[myTable.id] = this.deepClone(myTable.cols);
 
-                    var curTableSession = localStorage.getItem(storeKey);
-                    if (curTableSession && colsStr === localStorage.getItem('origin' + storeKey)) {
-                        this.updateCols(myTable, this.deepParse(curTableSession));
-                    } else {
-                        localStorage.setItem('origin' + storeKey, colsStr)
-                        localStorage.removeItem(storeKey)
-                    }
-                }
+                    // var curTableSession = localStorage.getItem(storeKey);
+                    // if (curTableSession && colsStr === localStorage.getItem('origin' + storeKey)) {
+                    //     this.updateCols(myTable, this.deepParse(curTableSession));debugger
+                    // } else {
+                    //     localStorage.setItem('origin' + storeKey, colsStr)
+                    //     localStorage.removeItem(storeKey)
+                    // }
+                // }
             } else {
                 // 如果没有开启记忆，则清除
                 this.clearCache(myTable);
+            }
+            if(!myTable.notReloadData) {// 只在 向服务端发起请求 时生效
+                originData[myTable.id] = this.deepClone(myTable.data);
+                myTable.notReloadData = true;
+            }
+            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
+                console.log('table.data is empty');
+                $(myTable.elem).next().children('.layui-table-total').addClass('layui-hide');
+                $(myTable.elem).siblings('#paging').addClass('layui-hide');
+
+            }else {
+                $(myTable.elem).next().children('.layui-table-total').removeClass('layui-hide');
+                $(myTable.elem).siblings('#paging').removeClass('layui-hide');
             }
             // 初始化暂停配置
             this.suspendConfig[myTable.id] = {
@@ -76,16 +138,24 @@
             }
             // 修复合计栏固定列问题
             if (curConfig.fixTotal) {
-                this.fixTotal(myTable)
+                this.fixTotal(myTable);
             }
             if (curConfig.drag) {
                 this.drag(myTable, curConfig.drag);
             }
             if (curConfig.rowDrag) {
-                this.rowDrag(myTable, curConfig.rowDrag)
+                this.rowDrag(myTable, curConfig.rowDrag);
             }
-            if (curConfig.autoColumnWidth) {
-                this.autoColumnWidth(myTable, curConfig.autoColumnWidth)
+
+            if (curConfig.totalRow) {
+                this.totalRow(myTable);
+            }
+
+            // 只在第一次 render 时生效
+            if (firstAutoColWidth && curConfig.autoColumnWidth) {
+                firstAutoColWidth = false;
+                this.autoColumnWidth(myTable, curConfig.autoColumnWidth);
+                console.log('autoColumnWidth: 只在第一次 render 时生效');
             }
 
             if(curConfig.contextmenu) {
@@ -109,13 +179,17 @@
                 curConfig.operandFlexBar.cache = true;
                 this.operandFlexBar(myTable, curConfig.operandFlexBar);
             }
-
-            if (curConfig.totalRow) {
-                this.totalRow(myTable);
-            }
             
             if (curConfig.lineColor) {
                 this.lineColor(myTable, curConfig.lineColor);
+            }
+
+            if (curConfig.lineSerachBox)  {
+                this.lineSerachBox(myTable, curConfig.lineSerachBox);
+            }
+
+            if (curConfig.adaptTableHeight)  {
+                this.adaptTableHeight(myTable);
             }
         }
         , config: function (configObj) {
@@ -210,15 +284,10 @@
         }
         , autoColumnWidth: function (myTable, autoColumnWidthConfig) {
             var _this = this;
-            layui.data(myTable.id, {
-                key: 'autoColumnWidth'
-                ,value: true
-              });
-              layui.data(myTable.id, {
-                key: 'autoColumnWidth1'
-                ,value: true
-              });
-
+            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
+                console.log('data is null, not autoColumnWidth function');
+                return;
+            }
             if (typeof myTable === 'object') {
                 innerColumnWidth(_this, myTable);
             } else if (typeof myTable === 'string') {
@@ -247,9 +316,8 @@
                         })
                         .appendTo(_BODY),
                       w = o.width();
-
                     o.remove();
-                    return w;
+                    return Math.ceil(w) || 0;
                 }
                 if (typeof autoColumnWidthConfig === 'undefined' || typeof autoColumnWidthConfig.dblclick === 'undefined' || autoColumnWidthConfig.dblclick) {
                     th.add(fixTh).on('dblclick', function (e) {
@@ -265,7 +333,10 @@
                         if (myTable.cols[colKey[1]][colKey[2]].autoWidth !== false && (!Array.isArray(autoColumnWidthConfig.init) || autoColumnWidthConfig.init.indexOf($(this).attr('data-field')) !== -1)) {
                             handleColumnWidth(myTable, $(this), true);
                         }
-                    })
+                    });
+                    if (autoColumnWidthConfig.cache) {
+                        _this.fixTableRememberToSession(myTable);
+                    }
                 }
 
                 function handleColumnWidth(myTable, othis, isHandle) {
@@ -363,6 +434,9 @@
                       field = $this.data('field'),
                       key = $this.data('key');
                     if (!key) {
+                        return;
+                    }
+                    if(!isNaN(field)) {
                         return;
                     }
 
@@ -548,20 +622,22 @@
                                       })
                                   }
 
-                                //   /* 拖动隐藏列 */
-                                //   if (e.clientY - originTop < -15) {
-                                //       if ($('#column-remove').length === 0) {
-                                //           _BODY.append('<i id="column-remove" class="layui-red layui-icon layui-icon-delete"></i>')
-                                //       }
-                                //       $('#column-remove').css({
-                                //           top: e.clientY - $('#column-remove').height() / 2,
-                                //           left: e.clientX - $('#column-remove').width() / 2,
-                                //           'font-size': (originTop - e.clientY) + 'px'
-                                //       })
-                                //       $('#column-remove').show();
-                                //   } else {
-                                //       $('#column-remove').hide();
-                                //   }
+                                /* 上移删除字段 -------------------------------
+                                  //拖动隐藏列
+                                  if (e.clientY - originTop < -15) {
+                                      if ($('#column-remove').length === 0) {
+                                          _BODY.append('<i id="column-remove" class="layui-red layui-icon layui-icon-delete"></i>')
+                                      }
+                                      $('#column-remove').css({
+                                          top: e.clientY - $('#column-remove').height() / 2,
+                                          left: e.clientX - $('#column-remove').width() / 2,
+                                          'font-size': (originTop - e.clientY) + 'px'
+                                      })
+                                      $('#column-remove').show();
+                                  } else {
+                                      $('#column-remove').hide();
+                                  }
+                                  ------------------------------*/
                               }
                           }).on('mouseup', function () {
                               _DOC.unbind("selectstart");
@@ -649,6 +725,7 @@
                                                   }
                                               });
                                           }
+                                          table.reload(tableId);
                                       } else if (isInFixed) {
                                           $noFixedBody.find('td[data-key="' + key + '"]').each(function () {
                                               if (prefKey) {
@@ -785,10 +862,10 @@
                                           }
                                           $dragBar.removeClass('active')
                                       }
-
                                   } else {
                                       $that.unbind('click');
                                   }
+                                  /* 上移删除字段 -------------------------------
                                   if ($('#column-remove').is(':visible')) {
                                       $tableHead.find('thead>tr>th[data-key=' + key + ']').addClass(HIDE);
                                       $tableBody.find('tbody>tr>td[data-key="' + key + '"]').addClass(HIDE);
@@ -800,7 +877,7 @@
                                       $('#soul-columns' + tableId).find('li[data-value="' + field + '"]>input').prop('checked', false);
                                   }
                                   $('#column-remove').hide();
-                                  table.reload(tableId);
+                                  ---------------------------------------*/
                               }
                           })
                       });
@@ -991,7 +1068,26 @@
                     }
                 }
                 var storeKey = location.pathname + location.hash + myTable.id;
-                localStorage.setItem(storeKey, this.deepStringify(myTable.cols))
+                localStorage.setItem(storeKey, this.deepStringify(myTable.cols));
+            }
+        },
+        fixTableRememberToSession: function (myTable, dict) {
+
+            if (typeof myTable.filter === 'undefined' ? (defaultConfig.filter && defaultConfig.filter.cache) : myTable.filter.cache) {
+                if (dict && dict.rule) {
+                    var curKey = dict.rule.selectorText.split('-')[3] + '-' + dict.rule.selectorText.split('-')[4];
+                    for (var i = 0; i < myTable.cols.length; i++) {
+                        for (var j = 0; j < myTable.cols[i].length; j++) {
+                            if (myTable.cols[i][j].key === curKey) {
+                                myTable.cols[i][j].width = dict.rule.style.width.replace('px', '');
+                                break;
+                            }
+                        }
+
+                    }
+                }
+                var storeKey = location.pathname + location.hash + myTable.id;
+                sessionStorage.setItem(storeKey, this.deepStringify(myTable.cols));
             }
         },
         clearCache: function (myTable) {
@@ -1295,12 +1391,19 @@
                   $fixedRight = $tableBox.children('.layui-table-fixed-r').children('.layui-table-body').children('table').children('tbody').children('tr:eq(0)').children('td'),
                   html = [];
 
-                $total.children('.layui-table-total-fixed').remove()
+                $total.children('.layui-table-total-fixed').remove();
+
+                //修正在没有toolbar时， total-toolbar偏移
+                let totalPosition = -7,
+                    toolBtn = $table.next().children('.layui-table-tool').children('.layui-table-tool-temp').children('.layui-btn-container').html();
+                if(toolBtn == undefined || toolBtn.trim() == '') {
+                    totalPosition = 3;
+                }
 
                 if ($fixedLeft.length > 0) {
                     this.addCSSRule(sheet, '.layui-table-total-fixed-l .layui-table-patch', 'display: none')
                     $table.next().css('position', 'relative');
-                    html.push('<table style="position: absolute;background-color: #fff;left: 0;bottom: ' + (-7) + 'px" cellspacing="0" cellpadding="0" border="0" class="layui-table layui-table-total-fixed layui-table-total-fixed-l"><tbody><tr>');
+                    html.push('<table style="position: absolute;background-color: #fff;left: 0;bottom: ' + (totalPosition) + 'px" cellspacing="0" cellpadding="0" border="0" class="layui-table layui-table-total-fixed layui-table-total-fixed-l"><tbody><tr>');
                     $fixedLeft.each(function () {
                         if ($(this).data('key')) {
                             html.push($total.children('table:eq(0)').find('[data-key="' + $(this).data('key') + '"]').prop("outerHTML"))
@@ -1314,7 +1417,7 @@
                     this.addCSSRule(sheet, '.layui-table-total-fixed-r td:last-child', 'border-left: none')
                     $table.next().css('position', 'relative');
                     html = [];
-                    html.push('<table style="position: absolute;background-color: #fff;right: 0;bottom: ' + (-7) + 'px" cellspacing="0" cellpadding="0" border="0" class="layui-table layui-table-total-fixed layui-table-total-fixed-r"><tbody><tr>');
+                    html.push('<table style="position: absolute;background-color: #fff;right: 0;bottom: ' + (totalPosition) + 'px" cellspacing="0" cellpadding="0" border="0" class="layui-table layui-table-total-fixed layui-table-total-fixed-r"><tbody><tr>');
                     $fixedRight.each(function () {
                         html.push($total.children('table:eq(0)').find('[data-key="' + $(this).data('key') + '"]').prop("outerHTML"))
                     })
@@ -1524,7 +1627,19 @@
         },
         // 深度克隆-不丢失方法
         deepClone: function (obj) {
-            var newObj = Array.isArray(obj) ? [] : {}
+            var newObj;
+            if(Array.isArray(obj)) {
+                newObj = [];
+            }else if(obj === null) {
+                newObj = '';
+            }else if(obj === undefined) {
+                newObj = '';
+            }else if(typeof obj == 'object') {
+                newObj = {};
+            }else {
+                newObj = '';
+            }
+            // var newObj = Array.isArray(obj) ? [] : {}
             if (obj && typeof obj === "object") {
                 for (var key in obj) {
                     if (obj.hasOwnProperty(key)) {
@@ -1553,13 +1668,13 @@
         },
         operandFlexBar: function (myTable, operandFlexBarConfig) {
             var _this = this;
-
+            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
+                console.log('data is null, not operandFlexBar function');
+                return;
+            }
             innerFlexBar(_this, myTable, 'OperandFlexBar');
 
             function innerFlexBar(_this, myTable, key) {
-                if(operandFlexBarConfig.unfoldMoreSerach) {
-                    innerUnfoldMoreSerach(myTable, operandFlexBarConfig.unfoldMoreSerach);
-                }
 
                 let tableBox = $(myTable.elem).next().children('.layui-table-box'),
                     tableTotal = $(myTable.elem).next().children('.layui-table-total');
@@ -1627,39 +1742,7 @@
                     element.find('.layui-table-operand-btn-prev').click();
                 }
             }
-            
-            function innerUnfoldMoreSerach(myTable, unfoldMoreSerachConfig) {
-                //判断highSearch 是否存在
-                if(!_BODY.find('form:first').children('.highSearch').hasClass('highSearch')) {
-                    // console.log('不存在高级查询');
-                    return false;
-                }
-                let tableOperandElem = $(myTable.elem).next().children('.layui-table-box').children('.layui-table-operand');
-                    
-                _BODY.find('.cutMore, .seeMore').unbind("click");
-                _BODY.find('.cutMore, .seeMore').bind('click', function(){
-                    let str = $(this).attr('class');
-                    if (str.indexOf('cutMore') != -1) {
-                        table.reload(myTable.id, {
-                            height: unfoldMoreSerachConfig.minHeight,
-                            operandFlexBar: {
-                                status: tableOperandElem.attr('status'), 
-                                unfoldMoreSerach: false
-                            }
-                        }, false);
-                        $(this).attr('tableheight', unfoldMoreSerachConfig.minHeight);
-                    }else {//展开
-                        table.reload(myTable.id, {
-                            height: unfoldMoreSerachConfig.maxHeight,
-                            operandFlexBar: {
-                                status: tableOperandElem.attr('status'), 
-                                unfoldMoreSerach: false
-                            }
-                        }, false);
-                        $(this).attr('tableheight', unfoldMoreSerachConfig.maxHeight);
-                    }
-                });
-            }
+
         },
         totalRow: function (myTable) {
             var _this = this;
@@ -1679,7 +1762,7 @@
                     totalNums = {}, totalCols = {}, totalNumsDecimals = {};
 
                 if (myTable.data && myTable.data.length <= 0) {
-                    $table.siblings('#paging').hide();
+                    // $table.siblings('#paging').hide();
                     // $table.parent().find('.layui-laypage').hide();
                     divCell.attr('style', 'visibility: ;').html('合计');
                     return false;
@@ -1770,7 +1853,6 @@
             // })
         },
         fixedChoose: function(myTable, oTr, type) {
-
             if (myTable.cols.length > 1) {
                 // 如果是复杂表头，则自动禁用拖动效果
                 return;
@@ -1780,6 +1862,9 @@
              field = oTr.data('field'),
              tableId = myTable.id;
             if (!key) {
+                return;
+            }
+            if(!isNaN(field)) {
                 return;
             }
             
@@ -1832,11 +1917,346 @@
                     targetPos.y -= 1
                 }
 
-                myTable.cols[targetPos.x].splice(targetPos.y, 0, curColumn)
-
+                myTable.cols[targetPos.x].splice(targetPos.y, 0, curColumn);
                 _this.fixTableRemember(myTable);
             }
             table.reload(tableId);
+        },
+        lineSerachBox: function(myTable, lineSerachBoxConfig) {
+            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
+                console.log('data is null, not lineSerachBox function');
+                return;
+            }
+            var _this = this,
+              $table = $(myTable.elem),
+              $tableBox = $table.next().children('.layui-table-box'),
+              $tableHeadMain = $tableBox.children('.layui-table-header').children('table'),
+              $fixedBodyRight = $tableBox.children('.layui-table-fixed-r').children('.layui-table-body').children('table'),
+              $fixedBodyLeft = $tableBox.children('.layui-table-fixed-l').children('.layui-table-body').children('table'),
+              $tableBodyMain = $tableBox.children('.layui-table-body').children('table'),
+              SerachBoxTrRElem = $(['<tr data-index="-1" class="row-serach-box">', '</tr>'].join('')),
+              SerachBoxTrLElem = $(['<tr data-index="-1" class="row-serach-box">', '</tr>'].join('')),
+              SerachBoxTrElem = $(['<tr data-index="-1" class="row-serach-box">', '</tr>'].join('')),
+              Title_NO = 'NO.';
+
+            if($tableBox.find('.row-serach-box').hasClass('row-serach-box')) {
+                $tableBox.find('.row-serach-box').remove();
+            }
+            let currPage = myTable.page.curr || (Number($table.parent().find('.layui-laypage').find('.layui-laypage-curr').text()) || 1);
+            
+            cacheWhere = cacheWhere.filter(function(item){
+                return item.page == currPage;
+            });
+            let filterSos = cacheWhere;
+            let thDataKey = $tableHeadMain.find('th:first').attr('data-key') || '';
+            let thIndex = thDataKey.split('-')[0] || currPage;
+
+            layui.each(myTable.cols, function(index, cols){
+                layui.each(cols, function(k, item){
+                    let field = item.field || '', hide = item.hide?'layui-hide':'', curFilterSoCache = [];
+
+                    layui.each(filterSos, function(k, v){
+                        if(v.field == field) {
+                            curFilterSoCache = v.children[0];
+                        }
+                    });
+                    
+                    let SerachBoxTd = [
+                        '<td data-field="'+ field +'" data-key="serach-'+ item.key +'" class="layui-table-col-special '+ hide +'">',
+                            '<div class="layui-table-cell laytable-cell-'+ thIndex +'-'+ item.key +'">',
+                                '<input type="text" class="layui-input layui-table-serach" placeholder="请输入..." value="'+ (curFilterSoCache.value || '') +'">',
+                            '</div>',
+                        '</td>'
+                    ];
+
+                    if(!item.field && !item.checkbox && item.title != Title_NO) {
+                        delete SerachBoxTd[2];
+                    }else if(item.checkbox) {
+                        delete SerachBoxTd[2];
+                    }else if(!item.field && item.templet) {
+                        delete SerachBoxTd[2];
+                    }else if(item.title == Title_NO) {
+                        SerachBoxTd[2] = '<div style="text-align: center;"><i class="layui-icon layui-icon-search"></i></div>';
+                    }
+                    let filterableTd = $(SerachBoxTd.join(''));
+                    let filterableLTd = $(SerachBoxTd.join(''));
+                    let filterableRTd = $(SerachBoxTd.join(''));
+                    $.merge(filterableTd.find('.layui-table-serach'), filterableLTd.find('.layui-table-serach')).focus(function(){
+                        $(this).select();
+                    });
+                    let isSerach = true;
+                    $.merge(filterableTd.find('.layui-table-serach'), filterableLTd.find('.layui-table-serach')).on('compositionstart',function(){
+                        isSerach = false;
+                    });
+                    $.merge(filterableTd.find('.layui-table-serach'), filterableLTd.find('.layui-table-serach')).on('compositionend',function(){
+                        isSerach = true;
+                    });
+                    $.merge(filterableTd.find('.layui-table-serach'), filterableLTd.find('.layui-table-serach')).on('input', function(){
+                        let inpOfThis = this;
+                        setTimeout(function() {
+                            if(!isSerach) {
+                                return ;
+                            }
+                            let value = $(inpOfThis).val();
+                            let field = $(inpOfThis).parent().parent().data('field');
+                            let currPage = myTable.page.curr || (Number($table.parent().find('.layui-laypage').find('.layui-laypage-curr').text()) || 1);
+
+                            let filterSo = {
+                                children: [{field: field, groupId: 2, id: 1, mode: "condition", prefix: "or", type: "contain", value: value}],
+                                field: field,
+                                head: true,
+                                id: 0,
+                                mode: "group",
+                                prefix: "and",
+                                page: currPage
+                            };
+                            let isExistFilterSos = false;
+                            layui.each(filterSos, function(k, v){
+                                if(v.field == filterSo.field) {
+                                    isExistFilterSos = true;
+                                    filterSos[k] = filterSo;
+                                }
+                            });
+                            if(!isExistFilterSos) {
+                                cacheWhere.push(filterSo);
+                            }
+                            _this.soulReload(myTable, filterSos);
+                            //自动获取焦点并把光标移至最后
+                            let curColClass = $(inpOfThis).parent().attr('class') || '';
+                            if(curColClass) {
+                                let colClassArr = curColClass.split(' ');
+                                let colClass = [];
+                                colClassArr.forEach(element => {
+                                    colClass.push('.' + element);
+                                });
+                                let curVar = $('tr[data-index="-1"]').find(colClass.join('')).find('.layui-table-serach').val();
+                                $('tr[data-index="-1"]').find(colClass.join('')).find('.layui-table-serach').val('').focus().val(curVar);
+                            }
+                        }, 0);
+                    });
+
+                    SerachBoxTrElem.append(filterableTd);
+                    if(item.fixed == 'left') {
+                        SerachBoxTrLElem.append(filterableLTd);
+                    }
+                    if(item.fixed == 'right') {
+                        SerachBoxTrRElem.append(filterableRTd);
+                    }
+                });
+            });
+            
+            $tableBodyMain.find('tbody').prepend(SerachBoxTrElem);
+            $fixedBodyLeft.find('tbody').prepend(SerachBoxTrLElem);
+            $fixedBodyRight.find('tbody').prepend(SerachBoxTrRElem);
+            
+            
+            $.merge(SerachBoxTrElem, SerachBoxTrLElem, SerachBoxTrRElem).dblclick(function(event){
+                return false;
+            });
+        },
+        soulReload: function(myTable, filterSos) {
+            var _this = this,
+              $table = $(myTable.elem),
+              cache = {},
+              tableFilterTypes = {};
+            
+            // cache[myTable.id] = originData[myTable.id];
+            // console.log('originData', originData);
+
+            if (filterSos.length > 0) {
+                var newData = [];
+                layui.each(originData[myTable.id], function (index, item) {
+                  var show = true;
+      
+                  for (var i = 0; i < filterSos.length; i++) {
+                    show = innerHandleFilterSo(filterSos[i], item, tableFilterTypes, show, i === 0)
+                  }
+      
+                  if (show) {
+                    newData.push(item)
+                  }
+                });
+                $table.next().off('click');
+                table.reload(myTable.id, {
+                    data: newData
+                });
+            }
+            myTable.data = newData;
+
+            function innerHandleFilterSo(filterSo, item, tableFilterTypes, show, first) {
+                var isOr = first ? false : filterSo.prefix === 'or',
+                    field = filterSo.field,
+                    value = filterSo.value,
+                    status = true;
+
+                // 如果有子元素
+                if (filterSo.children && filterSo.children.length > 0) {
+                    for (var i = 0; i < filterSo.children.length; i++) {
+                    status = innerHandleFilterSo(filterSo.children[i], item, tableFilterTypes, status, i === 0)
+                    }
+                    return isOr ? show || status : show && status;
+                }
+
+                switch (filterSo.mode) {
+                    case "in":
+                    if (filterSo.values && filterSo.values.length > 0) {
+                        if (filterSo.split) {
+                        var tempList = (item[field] + '').split(filterSo.split);
+                        var tempStatus = false;
+                        for (var i = 0; i < tempList.length; i++) {
+                            if (filterSo.values.indexOf(tempList[i]) !== -1) {
+                            tempStatus = true;
+                            }
+                        }
+                        status = tempStatus;
+                        } else {
+                        status = filterSo.values.indexOf(item[field] + '') !== -1
+                        }
+                    } else {
+                        return show;
+                    }
+                    break;
+                    case "condition":
+                    if (filterSo.type !== 'null' && filterSo.type !== 'notNull' && (typeof value === 'undefined' || value === '')) {
+                        return show;
+                    }
+                    switch (filterSo.type) {
+                        case "eq":
+                        status = isNaN(item[field]) || isNaN(value) ? item[field] === value : Number(item[field]) === Number(value);
+                        break;
+                        case "ne":
+                        status = isNaN(item[field]) || isNaN(value) ? item[field] !== value : Number(item[field]) !== Number(value);
+                        break;
+                        case "gt":
+                        status = isNaN(item[field]) || isNaN(value) ? item[field] > value : Number(item[field]) > Number(value);
+                        break;
+                        case "ge":
+                        status = isNaN(item[field]) || isNaN(value) ? item[field] >= value : Number(item[field]) >= Number(value);
+                        break;
+                        case "lt":
+                        status = isNaN(item[field]) || isNaN(value) ? item[field] < value : Number(item[field]) < Number(value);
+                        break;
+                        case "le":
+                        status = isNaN(item[field]) || isNaN(value) ? item[field] <= value : Number(item[field]) <= Number(value);
+                        break;
+                        case "contain":
+                        status = (item[field] + '').indexOf(value) !== -1;
+                        break;
+                        case "notContain":
+                        status = (item[field] + '').indexOf(value) === -1;
+                        break;
+                        case "start":
+                        status = (item[field] + '').indexOf(value) === 0;
+                        break;
+                        case "end":
+                        var d = (item[field] + '').length - (value + '').length;
+                        status = d >= 0 && (item[field] + '').lastIndexOf(value) === d;
+                        break;
+                        case "null":
+                        status = typeof item[field] === 'undefined' || item[field] === '' || item[field] === null;
+                        break;
+                        case "notNull":
+                        status = typeof item[field] !== 'undefined' && item[field] !== '' && item[field] !== null;
+                        break;
+                    }
+                    break;
+                    case "date":
+                    var dateVal = new Date(Date.parse(item[field].replace(/-/g, "/")));
+                    switch (filterSo.type) {
+                        case 'all':
+                        status = true;
+                        break;
+                        case 'yesterday':
+                        status = item[field] && isBetween(dateVal, getToday() - 86400, getToday() - 1);
+                        break;
+                        case 'thisWeek':
+                        status = item[field] && isBetween(dateVal, getFirstDayOfWeek(), getFirstDayOfWeek() + 86400 * 7 - 1);
+                        break;
+                        case 'lastWeek':
+                        status = item[field] && isBetween(dateVal, getFirstDayOfWeek() - 86400 * 7, getFirstDayOfWeek() - 1);
+                        break;
+                        case 'thisMonth':
+                        status = item[field] && isBetween(dateVal, getFirstDayOfMonth(), getCurrentMonthLast());
+                        break;
+                        case 'thisYear':
+                        status = item[field] && isBetween(dateVal, new Date(new Date().getFullYear(), 1, 1) / 1000, new Date(new Date().getFullYear() + 1, 1, 1) / 1000 - 1);
+                        break;
+                        case 'specific':
+                        var dateFormat = dateVal.getFullYear();
+                        dateFormat += '-' + (timeAdd0(dateVal.getMonth() + 1));
+                        dateFormat += '-' + timeAdd0(dateVal.getDate());
+                        status = item[field] && dateFormat === value
+                        break;
+                    }
+                    break;
+                }
+
+                // 今天凌晨
+                function getToday() {
+                    return new Date().setHours(0, 0, 0, 0) / 1000;
+                }
+
+                // 本周第一天
+                function getFirstDayOfWeek() {
+                    var now = new Date();
+                    var weekday = now.getDay() || 7; //获取星期几,getDay()返回值是 0（周日） 到 6（周六） 之间的一个整数。0||7为7，即weekday的值为1-7
+                    return new Date(now.setDate(now.getDate() - weekday + 1)).setHours(0, 0, 0, 0) / 1000;//往前算（weekday-1）天，年份、月份会自动变化
+                }
+
+                //获取当月第一天
+                function getFirstDayOfMonth() {
+                    return new Date(new Date().setDate(1)).setHours(0, 0, 0, 0) / 1000;
+                }
+
+                //获取当月最后一天最后一秒
+                function getCurrentMonthLast() {
+                    var date = new Date();
+                    var currentMonth = date.getMonth();
+                    var nextMonth = ++currentMonth;
+                    var nextMonthFirstDay = new Date(date.getFullYear(), nextMonth, 1);
+                    return nextMonthFirstDay / 1000 - 1;
+                }
+
+                function isBetween(v, a, b) {
+                    return (v.getTime() / 1000) >= a && (v.getTime() / 1000) <= b;
+                }
+
+                function timeAdd0(str) {
+                    str += "";
+                    if (str.length <= 1) {
+                    str = '0' + str;
+                    }
+                    return str
+                }
+
+                return isOr ? show || status : show && status;
+            }
+        },
+        adaptTableHeight: function(myTable){
+            
+            _BODY.find('.cutMore, .seeMore').unbind("click");
+            _BODY.find('.cutMore, .seeMore').bind('click', function(){
+                let str = $(this).attr('class');
+                let fullHeightGap = 10;
+                if (str.indexOf('cutMore') != -1) {//由展开向收缩
+                    _BODY.find('.criteria_im .layui-form-item').eq(5).nextAll().hide();
+                    $(this).html('<i class="layui-icon layui-icon-triangle-d"></i>展开高级查询');
+                    $(this).addClass('seeMore');
+                    $(this).removeClass('cutMore');
+                    fullHeightGap += _BODY.find('form:first').outerHeight();
+                }else {//由收缩向展开
+                    _BODY.find('.criteria_im .layui-form-item').eq(5).nextAll().show();
+                    $(this).html('<i class="layui-icon act layui-icon-triangle-d"></i>收起高级查询');
+                    $(this).addClass('cutMore');
+                    $(this).removeClass('seeMore');
+                    fullHeightGap += _BODY.find('form:first').outerHeight();
+                }
+                fullHeightGap += _BODY.find('#paging').outerHeight();
+                table.reload(myTable.id, {
+                    height: 'full-' + fullHeightGap
+                }, false);
+                $(this).attr('tableheight', 'full-' + fullHeightGap);
+            });
         },
         LocalCache: {
             set: function(key, field, value){
@@ -1851,9 +2271,37 @@
             },
             del: function(key, field) {
                 layui.data(key, {key: field, remove: true});
+            },
+            has: function(key, field) {
+                let hData = layui.data(key);
+                if(!hData[field]) {
+                    return false;
+                }
+                return true;
+            }
+        },
+        SessionCache: {
+            set: function(key, field, value){
+                layui.sessionData(key, {key: field, value: mod.deepStringify(value)});
+            },
+            get: function(key, field){
+                let hData = layui.sessionData(key);
+                if(!hData[field]) {
+                    return false;
+                }
+                return mod.deepParse(hData[field]);
+            },
+            del: function(key, field) {
+                layui.sessionData(key, {key: field, remove: true});
+            },
+            has: function(key, field) {
+                let hData = layui.sessionData(key);
+                if(!hData[field]) {
+                    return false;
+                }
+                return true;
             }
         }
-
     }
 
     // 输出
