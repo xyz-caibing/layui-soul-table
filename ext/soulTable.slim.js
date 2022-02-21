@@ -16,9 +16,10 @@
       originData = [],
       originCols = {},
       firstAutoColWidth = true,
+      firstAdaptTableHeight = true,
       defaultConfig = { // 默认配置开关
           adaptTableHeight: true,
-          lineSerachBox: true,
+          lineSerachBox: false,
           lineColor: true,
           operandFlexBar: false,  //默认关闭操作收缩栏 ，开启配置 {status: 'show'}  查询收缩栏 ，开启配置 {minHeight: 'full-160', maxHeight: 'full-190'}
           fixTotal: true, // 修复合计行固定列问题
@@ -123,7 +124,6 @@
                 myTable.notReloadData = true;
             }
             if(originData[myTable.id] && originData[myTable.id].length <= 0) {
-                console.log('table.data is empty');
                 $(myTable.elem).next().children('.layui-table-total').addClass('layui-hide');
                 $(myTable.elem).siblings('#paging').addClass('layui-hide');
 
@@ -284,10 +284,10 @@
         }
         , autoColumnWidth: function (myTable, autoColumnWidthConfig) {
             var _this = this;
-            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
-                console.log('data is null, not autoColumnWidth function');
-                return;
-            }
+            // if(originData[myTable.id] && originData[myTable.id].length <= 0) {
+            //     console.log('data is null, not autoColumnWidth function');
+            //     return;
+            // }
             if (typeof myTable === 'object') {
                 innerColumnWidth(_this, myTable);
             } else if (typeof myTable === 'string') {
@@ -1668,13 +1668,13 @@
         },
         operandFlexBar: function (myTable, operandFlexBarConfig) {
             var _this = this;
-            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
-                console.log('data is null, not operandFlexBar function');
-                return;
-            }
+            
             innerFlexBar(_this, myTable, 'OperandFlexBar');
 
             function innerFlexBar(_this, myTable, key) {
+                // if(operandFlexBarConfig.unfoldMoreSerach) {
+                //     innerUnfoldMoreSerach(myTable, operandFlexBarConfig.unfoldMoreSerach);
+                // }
 
                 let tableBox = $(myTable.elem).next().children('.layui-table-box'),
                     tableTotal = $(myTable.elem).next().children('.layui-table-total');
@@ -1743,6 +1743,38 @@
                 }
             }
 
+            function innerUnfoldMoreSerach(myTable, unfoldMoreSerachConfig) {
+                //判断highSearch 是否存在
+                if(!_BODY.find('form:first').children('.highSearch').hasClass('highSearch')) {
+                    // console.log('不存在高级查询');
+                    return false;
+                }
+                let tableOperandElem = $(myTable.elem).next().children('.layui-table-box').children('.layui-table-operand');
+
+                _BODY.find('.cutMore, .seeMore').unbind("click");
+                _BODY.find('.cutMore, .seeMore').bind('click', function(){
+                    let str = $(this).attr('class');
+                    if (str.indexOf('cutMore') != -1) {
+                        table.reload(myTable.id, {
+                            height: unfoldMoreSerachConfig.minHeight,
+                            operandFlexBar: {
+                                status: tableOperandElem.attr('status'), 
+                                unfoldMoreSerach: false
+                            }
+                        }, false);
+                        $(this).attr('tableheight', unfoldMoreSerachConfig.minHeight);
+                    }else {//展开
+                        table.reload(myTable.id, {
+                            height: unfoldMoreSerachConfig.maxHeight,
+                            operandFlexBar: {
+                                status: tableOperandElem.attr('status'), 
+                                unfoldMoreSerach: false
+                            }
+                        }, false);
+                        $(this).attr('tableheight', unfoldMoreSerachConfig.maxHeight);
+                    }
+                });
+            }
         },
         totalRow: function (myTable) {
             var _this = this;
@@ -1923,10 +1955,7 @@
             table.reload(tableId);
         },
         lineSerachBox: function(myTable, lineSerachBoxConfig) {
-            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
-                console.log('data is null, not lineSerachBox function');
-                return;
-            }
+            
             var _this = this,
               $table = $(myTable.elem),
               $tableBox = $table.next().children('.layui-table-box'),
@@ -1962,7 +1991,7 @@
                     });
                     
                     let SerachBoxTd = [
-                        '<td data-field="'+ field +'" data-key="serach-'+ item.key +'" class="layui-table-col-special '+ hide +'">',
+                        '<td data-field="'+ field +'" data-key="' + myTable.index + '-'+ item.key +'" class="layui-table-col-special '+ hide +'">',
                             '<div class="layui-table-cell laytable-cell-'+ thIndex +'-'+ item.key +'">',
                                 '<input type="text" class="layui-input layui-table-serach" placeholder="请输入..." value="'+ (curFilterSoCache.value || '') +'">',
                             '</div>',
@@ -2059,9 +2088,6 @@
               $table = $(myTable.elem),
               cache = {},
               tableFilterTypes = {};
-            
-            // cache[myTable.id] = originData[myTable.id];
-            // console.log('originData', originData);
 
             if (filterSos.length > 0) {
                 var newData = [];
@@ -2233,7 +2259,21 @@
             }
         },
         adaptTableHeight: function(myTable){
+            var $table = $(myTable.elem);
             
+            let topPosition = 33,
+                    toolBtn = $table.next().children('.layui-table-tool').children('.layui-table-tool-temp').children('.layui-btn-container').html();
+            if(toolBtn == undefined || toolBtn.trim() == '') {
+                topPosition = -5;
+            }
+
+            $table.next().children('.layui-table-tool').children('.layui-table-tool-self').find('div[lay-event="LAYTABLE_COLS"]').css('top', topPosition + 'px');
+
+            if(!firstAdaptTableHeight) {
+                return;
+            }
+            firstAdaptTableHeight = false;
+
             _BODY.find('.cutMore, .seeMore').unbind("click");
             _BODY.find('.cutMore, .seeMore').bind('click', function(){
                 let str = $(this).attr('class');
@@ -2252,11 +2292,13 @@
                     fullHeightGap += _BODY.find('form:first').outerHeight();
                 }
                 fullHeightGap += _BODY.find('#paging').outerHeight();
+                
+                $(this).attr('tableheight', 'full-' + fullHeightGap);
                 table.reload(myTable.id, {
                     height: 'full-' + fullHeightGap
                 }, false);
-                $(this).attr('tableheight', 'full-' + fullHeightGap);
             });
+            
         },
         LocalCache: {
             set: function(key, field, value){
