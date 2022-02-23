@@ -19,7 +19,7 @@
       firstAdaptTableHeight = true,
       defaultConfig = { // 默认配置开关
           adaptTableHeight: true,
-          lineSerachBox: false,
+          lineSerachBox: true,
           lineColor: true,
           operandFlexBar: false,  //默认关闭操作收缩栏 ，开启配置 {status: 'show'}  查询收缩栏 ，开启配置 {minHeight: 'full-160', maxHeight: 'full-190'}
           fixTotal: true, // 修复合计行固定列问题
@@ -155,7 +155,7 @@
             if (firstAutoColWidth && curConfig.autoColumnWidth) {
                 firstAutoColWidth = false;
                 this.autoColumnWidth(myTable, curConfig.autoColumnWidth);
-                console.log('autoColumnWidth: 只在第一次 render 时生效');
+                // console.log('autoColumnWidth: 只在第一次 render 时生效');
             }
 
             if(curConfig.contextmenu) {
@@ -284,10 +284,11 @@
         }
         , autoColumnWidth: function (myTable, autoColumnWidthConfig) {
             var _this = this;
-            // if(originData[myTable.id] && originData[myTable.id].length <= 0) {
-            //     console.log('data is null, not autoColumnWidth function');
-            //     return;
-            // }
+            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
+                console.log('table.data is empty, No Execute autoColumnWidth');
+                firstAutoColWidth = true;
+                return;
+            }
             if (typeof myTable === 'object') {
                 innerColumnWidth(_this, myTable);
             } else if (typeof myTable === 'string') {
@@ -1668,7 +1669,10 @@
         },
         operandFlexBar: function (myTable, operandFlexBarConfig) {
             var _this = this;
-            
+            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
+                console.log('table.data is empty, No Execute operandFlexBar');
+                return;
+            }
             innerFlexBar(_this, myTable, 'OperandFlexBar');
 
             function innerFlexBar(_this, myTable, key) {
@@ -1955,7 +1959,10 @@
             table.reload(tableId);
         },
         lineSerachBox: function(myTable, lineSerachBoxConfig) {
-            
+            if(originData[myTable.id] && originData[myTable.id].length <= 0) {
+                console.log('table.data is empty, Do not generate lineSerachBox');
+                return;
+            }
             var _this = this,
               $table = $(myTable.elem),
               $tableBox = $table.next().children('.layui-table-box'),
@@ -2259,21 +2266,23 @@
             }
         },
         adaptTableHeight: function(myTable){
-            var $table = $(myTable.elem);
+            var $table = $(myTable.elem),
+                $tableTool = $table.next().children('.layui-table-tool'),
+                $tableToolTemp = $tableTool.children('.layui-table-tool-temp'),
+                $tableToolSelf = $tableTool.children('.layui-table-tool-self');
             
             let topPosition = 33,
-                    toolBtn = $table.next().children('.layui-table-tool').children('.layui-table-tool-temp').children('.layui-btn-container').html();
+                toolBtn = $tableToolTemp.children('.layui-btn-container').html();
             if(toolBtn == undefined || toolBtn.trim() == '') {
                 topPosition = -5;
             }
-
-            $table.next().children('.layui-table-tool').children('.layui-table-tool-self').find('div[lay-event="LAYTABLE_COLS"]').css('top', topPosition + 'px');
-
+            $tableToolSelf.find('div[lay-event="LAYTABLE_COLS"]').css('top', topPosition + 'px');
+            
             if(!firstAdaptTableHeight) {
+                //只在第一次生效
                 return;
             }
             firstAdaptTableHeight = false;
-
             _BODY.find('.cutMore, .seeMore').unbind("click");
             _BODY.find('.cutMore, .seeMore').bind('click', function(){
                 let str = $(this).attr('class');
@@ -2283,20 +2292,22 @@
                     $(this).html('<i class="layui-icon layui-icon-triangle-d"></i>展开高级查询');
                     $(this).addClass('seeMore');
                     $(this).removeClass('cutMore');
-                    fullHeightGap += _BODY.find('form:first').outerHeight();
+                    fullHeightGap += _BODY.find('form:first').outerHeight() || 0;
                 }else {//由收缩向展开
                     _BODY.find('.criteria_im .layui-form-item').eq(5).nextAll().show();
                     $(this).html('<i class="layui-icon act layui-icon-triangle-d"></i>收起高级查询');
                     $(this).addClass('cutMore');
                     $(this).removeClass('seeMore');
-                    fullHeightGap += _BODY.find('form:first').outerHeight();
+                    fullHeightGap += _BODY.find('form:first').outerHeight() || 0;
+                    
                 }
-                fullHeightGap += _BODY.find('#paging').outerHeight();
+                fullHeightGap += _BODY.find('#paging').outerHeight() || 46;
+                
+                let tableThat = table.getThisTableClass(myTable.id);
+                tableThat.fullHeightGap = fullHeightGap;
+                tableThat.resize();
                 
                 $(this).attr('tableheight', 'full-' + fullHeightGap);
-                table.reload(myTable.id, {
-                    height: 'full-' + fullHeightGap
-                }, false);
             });
             
         },
