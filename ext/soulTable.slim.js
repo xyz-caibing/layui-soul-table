@@ -15,8 +15,7 @@
       cacheWhere = [],
       originData = [],
       originCols = {},
-      firstAutoColWidth = true,
-      firstAdaptTableHeight = true,
+      tableOptions = [];
       defaultConfig = { // 默认配置开关
           adaptTableHeight: true,
           lineSerachBox: true,
@@ -52,6 +51,25 @@
 
     // 封装方法
     var mod = {
+        updateOriginDataBy(id, field, value) {
+            let data = originData[id];
+            let delItem;
+            for (let index = 0; index < data.length; index++) {
+                if(data[index][field] == value) {
+                    delItem = data.splice(index, 1);
+                    break;
+                }
+            }
+            data.sort(function(a, b) {
+                return b.CreateTime < a.CreateTime ? -1 : 1;
+            });
+            if(delItem) {
+                data.unshift(delItem[0]);
+                for (let index = 0; index < data.length; index++) {
+                    data[index].LAY_TABLE_INDEX = index;
+                }
+            }
+        },
         getCurCols: function(id) {
             let key = location.pathname + location.hash + id;
             let curTableSession = sessionStorage.getItem(key);
@@ -99,6 +117,7 @@
             this.reCols(myTable);
             // 记录表格配置，方便直接通过 tableId 调用方法
             tables[myTable.id] = myTable;
+            tableOptions[myTable.id] = tableOptions[myTable.id] || {};
             var curConfig = $.extend({}, defaultConfig, myTable);
             if (curConfig.filter && curConfig.filter.cache) {
                 // var storeKey = location.pathname + location.hash + myTable.id;
@@ -152,10 +171,9 @@
             }
 
             // 只在第一次 render 时生效
-            if (firstAutoColWidth && curConfig.autoColumnWidth) {
-                firstAutoColWidth = false;
+            if (!tableOptions[myTable.id].isAutoColWidth && curConfig.autoColumnWidth) {
+                tableOptions[myTable.id].isAutoColWidth = true;
                 this.autoColumnWidth(myTable, curConfig.autoColumnWidth);
-                // console.log('autoColumnWidth: 只在第一次 render 时生效');
             }
 
             if(curConfig.contextmenu) {
@@ -286,7 +304,7 @@
             var _this = this;
             if(originData[myTable.id] && originData[myTable.id].length <= 0) {
                 console.log('table.data is empty, No Execute autoColumnWidth');
-                firstAutoColWidth = true;
+                tableOptions[myTable.id].isAutoColWidth = false;
                 return;
             }
             if (typeof myTable === 'object') {
@@ -352,30 +370,26 @@
                         var maxWidth = othis.text().width(othis.css('font')) + 21, font = othis.css('font');
                         
                         $tableBodytr.children('td[data-key="' + key + '"]').each(function (index, elem) {
-                            if(maxWidth >= 300) {
-                                maxWidth = 300;
-                                return false;
-                            }
+                            
                             var curWidth = 0
                             if ($(this).children().children() && $(this).children().children().length > 0) {
                                 curWidth += $(this).children().html().width(font);
                             } else {
                                 curWidth = $(this).text().width(font);
                             }
-
-                            // var curWidth = $(this).text().width(font);
-                            if (maxWidth < curWidth) {
-                                maxWidth = curWidth
+                            //格子内容最大限制300px
+                            if(curWidth >= 300) {
+                                maxWidth = 300;
+                            }else if (maxWidth < curWidth) {
+                                maxWidth = curWidth;
                             }
                         });
                         if ($totalTr.length > 0) {
                             var curWidth = $totalTr.children('td[data-key="' + key + '"]').text().width(font)
                             if (maxWidth < curWidth) {
-                                maxWidth = curWidth
+                                maxWidth = curWidth;
                             }
-
                         }
-                        
 
                         maxWidth += 32;
 
@@ -1818,17 +1832,6 @@
                     });
                 });
 
-                // layui.each(myTable.data, function(i1, item1){
-                //     layui.each(item1, function(i2, item2){
-                //         if(totalCols[i2] && item2 != null) {
-                //             if(totalNumsDecimals[i2] === false) {
-                //                 let decimalPart = String(item2).split('.')[1];
-                //                 totalNumsDecimals[i2] = decimalPart?decimalPart.length:false;
-                //             }
-                //             totalNums[i2] = BigNumber(item2).plus(totalNums[i2]);
-                //         }
-                //     });
-                // });
                 for (rowIndex in myTable.data) {
                     for (colIndex in myTable.data[rowIndex]) {
                         let item2 = myTable.data[rowIndex][colIndex];
@@ -1838,25 +1841,30 @@
                                 let decimalPart = String(item2).split('.')[1];
                                 totalNumsDecimals[i2] = decimalPart?decimalPart.length:false;
                             }
-                            totalNums[i2] = BigNumber(item2).plus(totalNums[i2]);
+                            if(!BigNumber(item2).isNaN()) {
+                                totalNums[i2] = BigNumber(item2).plus(totalNums[i2]);
+                            }
                         }
                     }
                 }
                 $.each(divCell, function (index, item) {
                     let fieldName = $(item).parent().attr('data-field');
                     if(totalNums[fieldName]) {
-                        $(item).html( _this.formatMoney(totalNums[fieldName], totalNumsDecimals[fieldName]) );
+                        $(item).html( _this.formatNumber(totalNums[fieldName], totalNumsDecimals[fieldName]) );
                     }
                 });
             }
         },
-        formatMoney: function (money, decimals = false) {
-            if (money != undefined && money != null) {
+        formatNumber: function (money, decimals = false) {
+            if (money != undefined && money != null && money != '') {
                 if(decimals === false) {
                     let decimalPart = String(money).split('.')[1];
                     decimals = decimalPart?decimalPart.length:0;
                 }
                 if(BigNumber.isBigNumber(money)) {
+                    if(money.isNaN()) {
+                        return '';
+                    }
                     return money.toFormat(decimals);
                 }
                 return BigNumber(money).toFormat(decimals);
@@ -1979,11 +1987,11 @@
                 $tableBox.find('.row-serach-box').remove();
             }
             let currPage = myTable.page.curr || (Number($table.parent().find('.layui-laypage').find('.layui-laypage-curr').text()) || 1);
-            
-            cacheWhere = cacheWhere.filter(function(item){
+            cacheWhere[myTable.id] = cacheWhere[myTable.id] || [];
+            cacheWhere[myTable.id] = cacheWhere[myTable.id].filter(function(item){
                 return item.page == currPage;
             });
-            let filterSos = cacheWhere;
+            let filterSos = cacheWhere[myTable.id] || [];
             let thDataKey = $tableHeadMain.find('th:first').attr('data-key') || '';
             let thIndex = thDataKey.split('-')[0] || currPage;
 
@@ -2031,9 +2039,10 @@
                         let inpOfThis = this;
                         setTimeout(function() {
                             if(!isSerach) {
-                                return ;
+                                return;
                             }
                             let value = $(inpOfThis).val();
+                            
                             let field = $(inpOfThis).parent().parent().data('field');
                             let currPage = myTable.page.curr || (Number($table.parent().find('.layui-laypage').find('.layui-laypage-curr').text()) || 1);
 
@@ -2054,7 +2063,7 @@
                                 }
                             });
                             if(!isExistFilterSos) {
-                                cacheWhere.push(filterSo);
+                                cacheWhere[myTable.id].push(filterSo);
                             }
                             _this.soulReload(myTable, filterSos);
                             //自动获取焦点并把光标移至最后
@@ -2065,8 +2074,8 @@
                                 colClassArr.forEach(element => {
                                     colClass.push('.' + element);
                                 });
-                                let curVar = $('tr[data-index="-1"]').find(colClass.join('')).find('.layui-table-serach').val();
-                                $('tr[data-index="-1"]').find(colClass.join('')).find('.layui-table-serach').val('').focus().val(curVar);
+                                let curVar = $('div[lay-id="' + myTable.id + '"]').find('tr[data-index="-1"]').find(colClass.join('')).find('.layui-table-serach').val();
+                                $('div[lay-id="' + myTable.id + '"]').find('tr[data-index="-1"]').find(colClass.join('')).find('.layui-table-serach').val('').focus().val(curVar);
                             }
                         }, 0);
                     });
@@ -2084,7 +2093,6 @@
             $tableBodyMain.find('tbody').prepend(SerachBoxTrElem);
             $fixedBodyLeft.find('tbody').prepend(SerachBoxTrLElem);
             $fixedBodyRight.find('tbody').prepend(SerachBoxTrRElem);
-            
             
             $.merge(SerachBoxTrElem, SerachBoxTrLElem, SerachBoxTrRElem).dblclick(function(event){
                 return false;
@@ -2278,11 +2286,11 @@
             }
             $tableToolSelf.find('div[lay-event="LAYTABLE_COLS"]').css('top', topPosition + 'px');
             
-            if(!firstAdaptTableHeight) {
+            if(tableOptions[myTable.id].isAdaptTableHeight) {
                 //只在第一次生效
                 return;
             }
-            firstAdaptTableHeight = false;
+            tableOptions[myTable.id].isAdaptTableHeight = true;
             _BODY.find('.cutMore, .seeMore').unbind("click");
             _BODY.find('.cutMore, .seeMore').bind('click', function(){
                 let str = $(this).attr('class');
@@ -2299,9 +2307,8 @@
                     $(this).addClass('cutMore');
                     $(this).removeClass('seeMore');
                     fullHeightGap += _BODY.find('form:first').outerHeight() || 0;
-                    
                 }
-                fullHeightGap += _BODY.find('#paging').outerHeight() || 46;
+                fullHeightGap += _BODY.find('#paging').outerHeight() || 0;
                 
                 let tableThat = table.getThisTableClass(myTable.id);
                 tableThat.fullHeightGap = fullHeightGap;
@@ -2309,6 +2316,7 @@
                 
                 $(this).attr('tableheight', 'full-' + fullHeightGap);
             });
+
             
         },
         LocalCache: {
