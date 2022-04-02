@@ -18,6 +18,7 @@
       tableOptions = [];
       defaultConfig = { // 默认配置开关
           adaptTableHeight: true,
+          editStyle: {defaultToolbar:['style']},
           lineSerachBox: true,
           lineColor: true,
           operandFlexBar: false,  //默认关闭操作收缩栏 ，开启配置 {status: 'show'}  查询收缩栏 ，开启配置 {minHeight: 'full-160', maxHeight: 'full-190'}
@@ -51,7 +52,7 @@
 
     // 封装方法
     var mod = {
-        updateOriginDataBy(id, field, value) {
+        updateOriginDataBy(id, field, value, attrs = []) {
             let data = originData[id];
             let delItem;
             for (let index = 0; index < data.length; index++) {
@@ -64,7 +65,11 @@
                 return b.CreateTime < a.CreateTime ? -1 : 1;
             });
             if(delItem) {
-                data.unshift(delItem[0]);
+                let firstItem = delItem[0];
+                attrs.forEach(element => {
+                    firstItem[element.key] = element.value;
+                });
+                data.unshift(firstItem);
                 for (let index = 0; index < data.length; index++) {
                     data[index].LAY_TABLE_INDEX = index;
                 }
@@ -204,6 +209,10 @@
 
             if (curConfig.lineSerachBox)  {
                 this.lineSerachBox(myTable, curConfig.lineSerachBox);
+            }
+
+            if(curConfig.editStyle) {
+                this.editStyle(myTable, curConfig.editStyle);
             }
 
             if (curConfig.adaptTableHeight)  {
@@ -2068,7 +2077,7 @@
                             _this.soulReload(myTable, filterSos);
                             //自动获取焦点并把光标移至最后
                             let curColClass = $(inpOfThis).parent().attr('class') || '';
-                            if(curColClass) {
+                            if(false && curColClass) {
                                 let colClassArr = curColClass.split(' ');
                                 let colClass = [];
                                 colClassArr.forEach(element => {
@@ -2318,6 +2327,188 @@
             });
 
             
+        },
+        editStyle: function (myTable, editStyleConfig) {
+            var $table = $(myTable.elem),
+                $tableTool = $table.next().children('.layui-table-tool'),
+                $tableToolSelf = $tableTool.children('.layui-table-tool-self');
+            
+            //添加工具栏右侧面板
+            var layout = {
+                style: {
+                    title: '界面查询风格管理'
+                    ,layEvent: 'LAYTABLE_STYLE'
+                    ,icon: 'layui-icon-layouts'
+                }
+            }, iconElem = [];
+            
+            if(typeof editStyleConfig.defaultToolbar === 'object'){
+                layui.each(editStyleConfig.defaultToolbar, function(i, item){
+                    var thisItem = typeof item === 'string' ? layout[item] : item;
+                    if(thisItem){
+                        iconElem.push('<div class="layui-inline" title="'+ thisItem.title +'" lay-event="'+ thisItem.layEvent +'">'
+                        +'<i class="layui-icon '+ thisItem.icon +'"></i>'
+                        +'</div>');
+                    }
+                });
+            }
+            $tableToolSelf.append(iconElem.join(''));
+            //工具栏操作事件
+            $tableToolSelf.on('click', '*[lay-event="LAYTABLE_STYLE"]', function(e){
+                var othis = $(this)
+                ,events = othis.attr('lay-event')
+                ,openPanel = function(sets){
+                    var list = $(sets.list)
+                    ,panel = $('<ul class="layui-table-tool-panel"><form class="layui-form"></form></ul>');
+                    
+                    panel.html(list);
+                    //限制最大高度 TODO
+                    // if(options.height){
+                    //     let height = options.height - (that.layTool.outerHeight() || 50);
+                    //     if(that.fullHeightGap) {
+                    //     height = _BODY.height() - that.fullHeightGap;
+                    //     height -= (that.layTool.outerHeight() || 0);
+                    //     height -= (that.layTotal.outerHeight() || 40);
+                    //     if(height < 135) height = 135;
+                    //     }
+                    //     panel.css('max-height', height);
+                    // }
+                    
+                    //插入元素
+                    othis.find('.layui-table-tool-panel')[0] || othis.append(panel);
+                    layui.form.render();
+                    
+                    panel.on('click', function(e){
+                        layui.stope(e);
+                    });
+                    
+                    sets.done && sets.done(panel, list);
+                },popupPanel = function(sets){
+                    var content = sets.content;
+                    sets.done && sets.done(content);
+                  };
+                layui.stope(e);
+                _DOC.trigger('table.tool.panel.remove');
+                switch(events){
+                    case 'LAYTABLE_STYLE':
+                        openPanel({
+                            list: function(){
+                                var lis = [];
+                                lis.push('<li data-type="add">格式保存</li>');
+                                lis.push('<li data-type="table">查询格式管理</li>');
+                                lis.push('<hr>');
+                                lis.push('<li><i class="layui-icon layui-icon-templeate-1"></i> 选择默认格式</li>');
+                                //TODO 从缓存去
+                                lis.push('<li><input type="radio" name="style" data-key="" checked data-parentkey="" lay-skin="primary" title="AAA样式风格" lay-filter="LAY_TABLE_TOOL_STYLE"></li>');
+                                lis.push('<li><input type="radio" name="style" data-key="" data-parentkey="" lay-skin="primary" title="BBB样式风格" lay-filter="LAY_TABLE_TOOL_STYLE"></li>');
+                                
+                                return lis.join('');
+                            }()
+                            ,done: function(panel, list){
+                                list.on('click', function(){
+                                    var type = $(this).data('type');
+                                    if(type == 'add') {
+                                        popupPanel({
+                                            content: function(){
+                                                return [
+                                                    '<div id="add-panel" style="padding: 0px 20px 20px 20px;"><form class="layui-form">',
+                                                        '<div class="layui-row"><div class="layui-form-item">',
+                                                        '<label class="layui-form-label" style="width:140px;"><i style=" color: red">*</i>&nbsp;格式名称：</label>',
+                                                        '<div class="layui-input-inline"><input type="text" name="StyleName" placeholder="请输入" autocomplete="off"></div>',
+                                                        '</div></div>',
+                                                        '<div class="layui-row"><div class="layui-form-item">',
+                                                        '<label class="layui-form-label" style="width:140px;"><i style=" color: red">*</i>&nbsp;是否默认格式：</label>',
+                                                        '<div class="layui-input-inline">',
+                                                        '<input type="radio" name="IsDefaultStyle" value="1" title="是" checked="checked">',
+                                                        '<input type="radio" name="IsDefaultStyle" value="0" title="否">',
+                                                        '</div></div></div>',
+                                                    '</form></div>',
+                                                ].join('');
+                                            }()
+                                            ,done: function(content){
+                                                layer.open({
+                                                    type: 1,
+                                                    content: content,
+                                                    area: ["400px", "280px"],
+                                                    btn: ['保存', '取消'],
+                                                    title: "格式保存",
+                                                    btnAlign: 'c',
+                                                    success: function(layero, index){layui.form.render();},
+                                                    btn1: function(index, layero){
+                                                        console.log('保存');
+                                                        layer.close(index);
+                                                    },
+                                                    end: function () {
+                                                    }
+                                                });
+                                            }
+                                        });
+                                    }else if(type == 'table'){
+                                        popupPanel({
+                                            content: function(){
+                                                return [
+                                                    '<div id="add-panel" style="padding: 0px 20px 20px 20px;">',
+                                                    '<table class="layui-table" lay-size="sm">',
+                                                    '<colgroup><col width="300"><col width="60"></colgroup>',
+                                                    '<thead>',
+                                                    '<tr><th>查询格式</th><th>操作</th></tr>',
+                                                    '</thead>',
+                                                    '<tbody>',
+                                                    '<tr><td>贤心1</td><td><a type="button" class="" lay-event="delete"><i class="layui-icon layui-icon-delete layui-red"></i></a></td></tr>',
+                                                    '<tr><td>贤心2</td><td><a type="button" class="" lay-event="delete"><i class="layui-icon layui-icon-delete layui-red"></i></a></td></tr>',
+                                                    '<tr"><td>贤心3</td><td><a type="button" class="" lay-event="delete"><i class="layui-icon layui-icon-delete layui-red"></i></a></td></tr>',
+                                                    '<tr><td>贤心4</td><td></td></tr>',
+                                                    '<tr><td>贤心5</td><td><a type="button" class="" lay-event="delete"><i class="layui-icon layui-icon-delete layui-red"></i></a></td></tr>',
+                                                    '<tr><td>贤心6</td><td><a type="button" class="" lay-event="delete"><i class="layui-icon layui-icon-delete layui-red"></i></a></td></tr>',
+                                                    '<tr><td>贤心7</td><td><a type="button" class="" lay-event="delete"><i class="layui-icon layui-icon-delete layui-red"></i></a></td></tr>',
+                                                    '</tbody>',
+                                                    '</table>',
+                                                    '</div>',
+                                                ].join('');
+                                            }()
+                                            ,done: function(content){
+                                                layer.open({
+                                                    type: 1,
+                                                    content: content,
+                                                    area: ["600px", "360px"],
+                                                    btn: ['确定', '取消'],
+                                                    title: "查询格式管理",
+                                                    btnAlign: 'c',
+                                                    success: function(layero, index){
+                                                        layero.find('.layui-layer-content').css('overflow', 'auto');
+                                                        layero.find('a[lay-event="delete"]').click(function(e){
+                                                            console.log('delete', this);
+                                                            $(this).parent().parent().remove();
+                                                        });
+                                                    },
+                                                    btn1: function(index, layero){
+                                                        console.log('确定');
+                                                        layer.close(index);
+                                                    },
+                                                    end: function () {
+                                                    }
+                                                });
+                                            }
+                                        });
+                                    }
+                                });
+                                layui.form.on('radio(LAY_TABLE_TOOL_STYLE)', function(obj){
+                                    var othis = $(obj.elem)
+                                    ,checked = this.checked
+                                    ,key = othis.data('key')
+                                    ,parentKey = othis.data('parentkey');
+                                    console.log(checked, key, parentKey);
+                                    layer.load(2);
+                                    setTimeout(() => {
+                                        layer.closeAll();
+                                        _DOC.trigger('table.tool.panel.remove');
+                                    }, 3000);
+                                });
+                            }
+                        });
+                    break;
+                }
+            });
         },
         LocalCache: {
             set: function(key, field, value){
